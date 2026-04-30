@@ -238,104 +238,340 @@ def get_history():
     
     return history_text
 
+# Custom CSS for professional styling
+custom_css = """
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
+* {
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
+
+.gradio-container {
+    background: transparent !important;
+    max-width: 1400px;
+}
+
+.header-container {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 50%, #c92a2a 100%);
+    padding: 40px 20px;
+    border-radius: 20px;
+    color: white;
+    text-align: center;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+
+.header-container h1 {
+    font-size: 2.5em;
+    margin: 0;
+    font-weight: 700;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.header-container p {
+    font-size: 1.2em;
+    margin: 10px 0 0 0;
+    opacity: 0.95;
+    font-weight: 300;
+}
+
+.tab-nav {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+
+.tab-button {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 50px;
+    font-size: 1.1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.tab-button.active {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+}
+
+.content-card {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.input-section {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+}
+
+.button-group {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.button-group button {
+    flex: 1;
+    padding: 15px 30px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.primary-btn {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+}
+
+.primary-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(255, 107, 107, 0.6);
+}
+
+.secondary-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.secondary-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+}
+
+.result-box {
+    background: linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%);
+    border-left: 5px solid #ff6b6b;
+    padding: 25px;
+    border-radius: 10px;
+    margin: 20px 0;
+}
+
+.result-box h3 {
+    color: #c92a2a;
+    margin-top: 0;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.stat-card h3 {
+    margin: 0;
+    font-size: 2.5em;
+    font-weight: 700;
+}
+
+.stat-card p {
+    margin: 10px 0 0 0;
+    opacity: 0.9;
+}
+
+.example-box {
+    background: #f0f9ff;
+    border-left: 4px solid #667eea;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 15px 0;
+}
+
+.severity-critical {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 10px 0;
+}
+
+.severity-high {
+    background: linear-gradient(135deg, #ffa500 0%, #ff8c00 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 10px 0;
+}
+
+.severity-medium {
+    background: linear-gradient(135deg, #ffd700 0%, #ffc700 100%);
+    color: #333;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 10px 0;
+}
+
+.severity-safe {
+    background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 10px 0;
+}
+
+.markdown h1, .markdown h2, .markdown h3 {
+    color: #2d3748;
+    font-weight: 700;
+}
+
+.markdown strong {
+    color: #c92a2a;
+}
+
+.icon-emoji {
+    font-size: 2em;
+    margin-right: 10px;
+}
+
+@media (max-width: 768px) {
+    .content-card {
+        padding: 20px;
+    }
+    
+    .header-container h1 {
+        font-size: 1.8em;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .button-group {
+        flex-direction: column;
+    }
+}
+"""
+
 # Create the enhanced web app
 with gr.Blocks(
     title="AI Disaster Detection Alert System",
-    theme=gr.themes.Soft(primary_hue="red", secondary_hue="orange")
+    theme=gr.themes.Soft(primary_hue="red", secondary_hue="orange"),
+    css=custom_css
 ) as demo:
     
-    gr.Markdown("""
-    # 🚨 AI Disaster Detection Alert System
-    
-    **Emergency Response AI for Real-Time Social Media Monitoring**
+    # Header
+    gr.HTML("""
+    <div class="header-container">
+        <h1>🚨 AI DISASTER DETECTION ALERT SYSTEM</h1>
+        <p>🤖 AI-Powered Emergency Response | Real-Time Social Media Monitoring</p>
+    </div>
     """)
     
     with gr.Tabs():
         # TAB 1: Main Detection
-        with gr.Tab("🔍 Disaster Detector"):
-            gr.Markdown("""
-            ### About This System
-            This AI helps emergency services **detect REAL disasters** from social media noise in real-time.
-            
-            **Who Benefits:**
-            - 🚒 Firefighters - Find fire/explosion reports
-            - 🚑 EMS - Locate injured people  
-            - 📰 News - Verify breaking news
-            - 🏛️ Government - Coordinate rescue operations
-            - 🤖 AI Systems - Automated alert routing
-            """)
-            
-            with gr.Row():
-                with gr.Column(scale=1):
-                    gr.Markdown("### 📝 Input Tweet")
-                    tweet_input = gr.Textbox(
-                        label="Enter Tweet to Analyze",
-                        placeholder="Example: Earthquake reported near Tokyo - residents evacuating",
-                        lines=4,
-                        elem_classes="tweet-input"
-                    )
-                    
-                    with gr.Row():
-                        submit_btn = gr.Button("🔍 Analyze Tweet", variant="primary", size="lg")
-                        clear_btn = gr.Button("🗑️ Clear", size="lg")
+        with gr.Tab("🔍 Disaster Detector", id="detector"):
+            with gr.Column():
+                gr.Markdown("""
+                ## About This System
+                This AI helps emergency services **detect REAL disasters** from social media noise in real-time.
                 
-                with gr.Column(scale=1):
-                    gr.Markdown("### 💡 Example Tweets")
-                    gr.Examples(
-                        examples=[
-                            ["Earthquake magnitude 7.5 in Tokyo, buildings collapsing"],
-                            ["Massive flood in Pakistan, evacuation ongoing"],
-                            ["My exam was a total disaster"],
-                            ["Building collapsed with people trapped inside"],
-                            ["Today is a beautiful day"],
-                            ["Fire at apartment building - 20 people injured"]
-                        ],
-                        inputs=tweet_input
-                    )
-            
-            with gr.Row():
-                with gr.Column(scale=2):
-                    output = gr.Markdown(label="Analysis Result", elem_classes="result-box")
-                with gr.Column(scale=1):
-                    category_out = gr.Markdown(label="Category Breakdown")
-                    status_out = gr.Textbox(label="Status", interactive=False)
-            
-            submit_btn.click(
-                fn=detect_disaster,
-                inputs=tweet_input,
-                outputs=[output, category_out, status_out]
-            )
-            
-            clear_btn.click(
-                fn=lambda: ("", "", ""),
-                outputs=[tweet_input, output, category_out]
-            )
+                ✅ **Who Benefits:**
+                - 🚒 Firefighters - Find fire/explosion reports
+                - 🚑 EMS - Locate injured people  
+                - 📰 News - Verify breaking news
+                - 🏛️ Government - Coordinate rescue operations
+                """)
+                
+                with gr.Row():
+                    with gr.Column(scale=2):
+                        gr.HTML("<h3>📝 Analyze a Tweet</h3>")
+                        tweet_input = gr.Textbox(
+                            label="Enter Tweet to Analyze",
+                            placeholder="Example: Earthquake reported near Tokyo - residents evacuating",
+                            lines=5,
+                            elem_classes="tweet-input"
+                        )
+                        
+                        with gr.Row():
+                            submit_btn = gr.Button("🔍 Analyze Tweet", variant="primary", size="lg")
+                            clear_btn = gr.Button("🗑️ Clear", size="lg")
+                    
+                    with gr.Column(scale=1):
+                        gr.HTML("<h3>💡 Quick Examples</h3>")
+                        gr.Examples(
+                            examples=[
+                                ["Earthquake magnitude 7.5 in Tokyo, buildings collapsing"],
+                                ["Massive flood in Pakistan, evacuation ongoing"],
+                                ["My exam was a total disaster"],
+                                ["Building collapsed with people trapped inside"],
+                                ["Today is a beautiful day"],
+                                ["Fire at apartment building - 20 people injured"]
+                            ],
+                            inputs=tweet_input
+                        )
+                
+                gr.Markdown("---")
+                
+                with gr.Row():
+                    with gr.Column(scale=2):
+                        output = gr.Markdown(label="Analysis Result")
+                    with gr.Column(scale=1):
+                        category_out = gr.Markdown(label="Category Breakdown")
+                        status_out = gr.Textbox(label="Status", interactive=False)
+                
+                submit_btn.click(
+                    fn=detect_disaster,
+                    inputs=tweet_input,
+                    outputs=[output, category_out, status_out]
+                )
+                
+                clear_btn.click(
+                    fn=lambda: ("", "", ""),
+                    outputs=[tweet_input, output, category_out]
+                )
         
         # TAB 2: Statistics
-        with gr.Tab("📊 Statistics & Analytics"):
-            gr.Markdown("### 📈 System Performance Metrics")
-            
-            stats_output = gr.Markdown(label="Statistics")
-            refresh_btn = gr.Button("🔄 Refresh Statistics", variant="primary")
-            
-            refresh_btn.click(fn=get_statistics, outputs=stats_output)
-            
-            # Auto-load on tab view
-            demo.load(fn=get_statistics, outputs=stats_output)
+        with gr.Tab("📊 Statistics & Analytics", id="stats"):
+            with gr.Column():
+                gr.HTML("<h2>📈 System Performance Metrics</h2>")
+                
+                stats_output = gr.Markdown(label="Statistics")
+                refresh_btn = gr.Button("🔄 Refresh Statistics", variant="primary")
+                
+                refresh_btn.click(fn=get_statistics, outputs=stats_output)
+                demo.load(fn=get_statistics, outputs=stats_output)
         
         # TAB 3: History
-        with gr.Tab("📋 Detection History"):
-            gr.Markdown("### 📜 Recent Detection History")
-            
-            history_output = gr.Markdown(label="History")
-            refresh_history_btn = gr.Button("🔄 Refresh History", variant="primary")
-            
-            refresh_history_btn.click(fn=get_history, outputs=history_output)
-            
-            demo.load(fn=get_history, outputs=history_output)
+        with gr.Tab("📋 Detection History", id="history"):
+            with gr.Column():
+                gr.HTML("<h2>📜 Recent Detection History</h2>")
+                
+                history_output = gr.Markdown(label="History")
+                refresh_history_btn = gr.Button("🔄 Refresh History", variant="primary")
+                
+                refresh_history_btn.click(fn=get_history, outputs=history_output)
+                demo.load(fn=get_history, outputs=history_output)
         
         # TAB 4: About
-        with gr.Tab("ℹ️ About & Guide"):
+        with gr.Tab("ℹ️ About & Guide", id="about"):
             gr.Markdown("""
             ## 🚨 How the System Works
             
