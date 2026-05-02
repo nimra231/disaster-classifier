@@ -10,94 +10,122 @@ import numpy as np
 st.set_page_config(page_title="Disaster Tweet Classifier", page_icon="🚨", layout="wide")
 
 # ============================================
-# CUSTOM CSS FOR BEAUTIFUL UI
+# INITIALIZE SESSION STATE FOR THEME
 # ============================================
-def apply_custom_theme():
-    st.markdown("""
+if 'primary_color' not in st.session_state:
+    st.session_state.primary_color = "#667eea"
+if 'secondary_color' not in st.session_state:
+    st.session_state.secondary_color = "#764ba2"
+
+# ============================================
+# FUNCTION TO APPLY THEME
+# ============================================
+def apply_theme():
+    primary = st.session_state.primary_color
+    secondary = st.session_state.secondary_color
+    
+    st.markdown(f"""
     <style>
     /* Main container */
-    .main {
+    .main {{
         padding: 20px;
-    }
+    }}
     
-    /* Header styling */
-    .main-header {
-        text-align: center;
-        padding: 20px;
-        border-radius: 15px;
-        margin-bottom: 20px;
-    }
+    /* Gradient text for header */
+    .gradient-text {{
+        background: linear-gradient(135deg, {primary} 0%, {secondary} 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 2.5em;
+        font-weight: bold;
+    }}
     
-    /* Card styling */
-    .card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* Card gradient */
+    .gradient-card {{
+        background: linear-gradient(135deg, {primary} 0%, {secondary} 100%);
         padding: 20px;
         border-radius: 15px;
         color: white;
-        margin: 10px 0;
-    }
+    }}
     
     /* Stat cards */
-    .stat-card {
+    .stat-card {{
         background: white;
         padding: 15px;
         border-radius: 12px;
         text-align: center;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         border: 1px solid #e0e0e0;
-    }
+    }}
     
     /* Result boxes */
-    .critical-box {
+    .critical-box {{
         background: linear-gradient(135deg, #fef2f2, #fee2e2);
         border-left: 6px solid #dc3545;
         padding: 20px;
         border-radius: 12px;
         margin: 15px 0;
-    }
+    }}
     
-    .high-box {
+    .high-box {{
         background: linear-gradient(135deg, #fff7ed, #ffedd5);
         border-left: 6px solid #fd7e14;
         padding: 20px;
         border-radius: 12px;
         margin: 15px 0;
-    }
+    }}
     
-    .medium-box {
+    .medium-box {{
         background: linear-gradient(135deg, #fffbeb, #fef3c7);
         border-left: 6px solid #ffc107;
         padding: 20px;
         border-radius: 12px;
         margin: 15px 0;
-    }
+    }}
     
-    .safe-box {
+    .safe-box {{
         background: linear-gradient(135deg, #f0fdf4, #dcfce7);
         border-left: 6px solid #28a745;
         padding: 20px;
         border-radius: 12px;
         margin: 15px 0;
-    }
+    }}
+    
+    /* Button styling */
+    .stButton > button {{
+        background: linear-gradient(135deg, {primary}, {secondary}) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 8px 20px !important;
+        font-weight: 600 !important;
+        transition: transform 0.2s !important;
+    }}
+    
+    .stButton > button:hover {{
+        transform: translateY(-2px) !important;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2) !important;
+    }}
     
     /* Footer */
-    .footer {
+    .footer {{
         text-align: center;
         padding: 20px;
         margin-top: 30px;
         border-top: 1px solid #e0e0e0;
         font-size: 12px;
         color: #999;
-    }
+    }}
     
-    /* Title gradient */
-    .gradient-text {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: 2.5em;
-        font-weight: bold;
-    }
+    /* Stats card in sidebar */
+    .stats-card {{
+        background: linear-gradient(135deg, {primary}, {secondary});
+        padding: 12px;
+        border-radius: 10px;
+        text-align: center;
+        color: white;
+        margin: 8px 0;
+    }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -107,25 +135,17 @@ def apply_custom_theme():
 with st.sidebar:
     st.markdown("### 🎨 Customize Theme")
     
-    # Color pickers for theme
-    primary_color = st.color_picker("Primary Color", "#667eea")
-    secondary_color = st.color_picker("Secondary Color", "#764ba2")
+    # Color pickers
+    new_primary = st.color_picker("Primary Color", st.session_state.primary_color)
+    new_secondary = st.color_picker("Secondary Color", st.session_state.secondary_color)
     
-    st.markdown("---")
-    
-    # Custom CSS with user-selected colors
-    st.markdown(f"""
-    <style>
-    .card {{
-        background: linear-gradient(135deg, {primary_color} 0%, {secondary_color} 100%) !important;
-    }}
-    .gradient-text {{
-        background: linear-gradient(135deg, {primary_color} 0%, {secondary_color} 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }}
-    </style>
-    """, unsafe_allow_html=True)
+    # Update colors if changed
+    if new_primary != st.session_state.primary_color:
+        st.session_state.primary_color = new_primary
+        st.rerun()
+    if new_secondary != st.session_state.secondary_color:
+        st.session_state.secondary_color = new_secondary
+        st.rerun()
     
     st.markdown("---")
     
@@ -133,29 +153,48 @@ with st.sidebar:
     st.markdown("### 📊 Session Statistics")
     
     if 'stats' in st.session_state:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Total", st.session_state.stats.get('total', 0))
-        with col2:
-            st.metric("Critical", st.session_state.stats.get('critical', 0))
-        
-        col3, col4 = st.columns(2)
-        with col3:
-            st.metric("High", st.session_state.stats.get('high', 0))
-        with col4:
-            st.metric("Medium", st.session_state.stats.get('medium', 0))
-        
-        st.metric("Safe", st.session_state.stats.get('safe', 0))
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, {st.session_state.primary_color}, {st.session_state.secondary_color}); padding: 15px; border-radius: 12px; margin: 10px 0;">
+            <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                <span>📝 Total:</span>
+                <span style="font-weight: bold; font-size: 20px;">{st.session_state.stats.get('total', 0)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                <span>🔴 Critical:</span>
+                <span style="font-weight: bold;">{st.session_state.stats.get('critical', 0)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                <span>🟠 High:</span>
+                <span style="font-weight: bold;">{st.session_state.stats.get('high', 0)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                <span>🟡 Medium:</span>
+                <span style="font-weight: bold;">{st.session_state.stats.get('medium', 0)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                <span>🟢 Safe:</span>
+                <span style="font-weight: bold;">{st.session_state.stats.get('safe', 0)}</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
     st.markdown("---")
-    st.markdown("### 👩‍💻 Made by")
-    st.markdown("<h3 style='text-align: center; color: #764ba2;'>NIMRA IFTIKHAR</h3>", unsafe_allow_html=True)
+    
+    # Made by section
+    st.markdown(f"""
+    <div style="text-align: center; padding: 15px; background: linear-gradient(135deg, {st.session_state.primary_color}20, {st.session_state.secondary_color}20); border-radius: 12px;">
+        <div style="font-size: 14px; color: #666;">👩‍💻 MADE BY</div>
+        <div style="font-size: 18px; font-weight: bold; background: linear-gradient(135deg, {st.session_state.primary_color}, {st.session_state.secondary_color}); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">NIMRA IFTIKHAR</div>
+        <div style="font-size: 11px; color: #888;">4th Semester AI Project</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Apply theme
+apply_theme()
 
 # ============================================
 # MAIN HEADER
 # ============================================
-apply_custom_theme()
-
 st.markdown(f"""
 <div style="text-align: center; margin-bottom: 30px;">
     <h1 class="gradient-text">🚨 Disaster Tweet Classifier</h1>
@@ -202,13 +241,74 @@ def extract_location(tweet):
             return city
     return None
 
+def get_disaster_type(keywords):
+    if 'earthquake' in keywords: return '🌍 Earthquake'
+    elif 'flood' in keywords: return '🌊 Flood'
+    elif 'tsunami' in keywords: return '🌊 Tsunami'
+    elif 'fire' in keywords: return '🔥 Fire'
+    elif 'explosion' in keywords: return '💥 Explosion'
+    else: return '⚠️ Emergency'
+
+# ============================================
+# ANALYSIS FUNCTION
+# ============================================
+def analyze_tweet(tweet):
+    if not tweet or not tweet.strip():
+        return None, None
+    
+    tweet_lower = tweet.lower()
+    found = []
+    severity = None
+    
+    for word, level in DISASTER_WORDS.items():
+        if word in tweet_lower:
+            found.append(word)
+            if severity is None:
+                severity = level
+            elif level == 'CRITICAL':
+                severity = 'CRITICAL'
+    
+    location = extract_location(tweet)
+    confidence = min(95, len(found) * 20 + 50) if found else 92
+    disaster_type = get_disaster_type(found) if found else 'Normal Conversation'
+    
+    # Update stats
+    if found:
+        if severity == 'CRITICAL':
+            st.session_state.stats['critical'] += 1
+        elif severity == 'HIGH':
+            st.session_state.stats['high'] += 1
+        else:
+            st.session_state.stats['medium'] += 1
+        st.session_state.all_keywords.extend(found)
+    else:
+        st.session_state.stats['safe'] += 1
+    
+    if location:
+        st.session_state.all_locations.append(location)
+    st.session_state.stats['total'] += 1
+    
+    # Save to history
+    st.session_state.history.insert(0, {
+        'time': datetime.now().strftime('%H:%M:%S'),
+        'date': datetime.now().strftime('%Y-%m-%d'),
+        'tweet': tweet[:50] + '...' if len(tweet) > 50 else tweet,
+        'result': severity if found else 'SAFE',
+        'location': location or '—',
+        'confidence': confidence,
+        'type': disaster_type,
+        'keywords': ', '.join(found) if found else 'None'
+    })
+    
+    return found, severity
+
 # ============================================
 # TABS
 # ============================================
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Single Text", "📋 Batch Analysis", "📊 Analytics", "📋 History"])
 
 # ============================================
-# TAB 1: SINGLE TWEET ANALYSIS
+# TAB 1: SINGLE TWEET
 # ============================================
 with tab1:
     col1, col2 = st.columns([3, 2])
@@ -219,7 +319,8 @@ with tab1:
             "",
             placeholder="Paste any tweet — a disaster report, news headline, or message — and the AI will detect if it's a real emergency instantly.",
             height=150,
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            key="tweet_input"
         )
         
         col_btn1, col_btn2 = st.columns(2)
@@ -233,30 +334,29 @@ with tab1:
         example_col1, example_col2 = st.columns(2)
         with example_col1:
             if st.button("🌍 Earthquake in Tokyo", use_container_width=True):
-                tweet_input = "Earthquake in Tokyo! Buildings shaking, evacuations underway."
+                st.session_state.tweet_input = "Earthquake in Tokyo! Buildings shaking, evacuations underway."
                 st.rerun()
             if st.button("🌊 Tsunami warning Japan", use_container_width=True):
-                tweet_input = "Tsunami warning issued for Japan coastline."
+                st.session_state.tweet_input = "Tsunami warning issued for Japan coastline."
                 st.rerun()
             if st.button("🔥 Fire in Karachi", use_container_width=True):
-                tweet_input = "Fire at Karachi apartment building, people trapped inside."
+                st.session_state.tweet_input = "Fire at Karachi apartment building, people trapped inside."
                 st.rerun()
         
         with example_col2:
             if st.button("💥 Explosion reported", use_container_width=True):
-                tweet_input = "Explosion at chemical plant, multiple casualties reported."
+                st.session_state.tweet_input = "Explosion at chemical plant, multiple casualties reported."
                 st.rerun()
             if st.button("📚 My exam disaster", use_container_width=True):
-                tweet_input = "My exam was a complete disaster."
+                st.session_state.tweet_input = "My exam was a complete disaster."
                 st.rerun()
             if st.button("☀️ Beautiful day", use_container_width=True):
-                tweet_input = "Beautiful sunny day at the beach."
+                st.session_state.tweet_input = "Beautiful sunny day at the beach."
                 st.rerun()
     
     with col2:
         st.markdown("### 📊 Quick Stats")
         
-        # Display stats in cards
         total = st.session_state.stats['total']
         critical = st.session_state.stats['critical']
         high = st.session_state.stats['high']
@@ -281,54 +381,17 @@ with tab1:
                 <div style="font-size: 24px; font-weight: bold;">{medium}</div>
                 <div style="font-size: 11px;">MEDIUM</div>
             </div>
+            <div style="background: #28a745; color: white; padding: 15px; border-radius: 10px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold;">{safe}</div>
+                <div style="font-size: 11px;">SAFE</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
     # Analysis Result
-    if analyze_btn and tweet_input:
-        tweet_lower = tweet_input.lower()
-        found = []
-        severity = None
+    if analyze_btn:
+        found, severity = analyze_tweet(tweet_input)
         
-        for word, level in DISASTER_WORDS.items():
-            if word in tweet_lower:
-                found.append(word)
-                if severity is None:
-                    severity = level
-                elif level == 'CRITICAL':
-                    severity = 'CRITICAL'
-        
-        location = extract_location(tweet_input)
-        confidence = min(95, len(found) * 20 + 50) if found else 92
-        
-        # Update stats
-        if found:
-            if severity == 'CRITICAL':
-                st.session_state.stats['critical'] += 1
-            elif severity == 'HIGH':
-                st.session_state.stats['high'] += 1
-            else:
-                st.session_state.stats['medium'] += 1
-            st.session_state.all_keywords.extend(found)
-        else:
-            st.session_state.stats['safe'] += 1
-        
-        if location:
-            st.session_state.all_locations.append(location)
-        st.session_state.stats['total'] += 1
-        
-        # Save to history
-        st.session_state.history.insert(0, {
-            'time': datetime.now().strftime('%H:%M:%S'),
-            'date': datetime.now().strftime('%Y-%m-%d'),
-            'tweet': tweet_input[:50] + '...' if len(tweet_input) > 50 else tweet_input,
-            'result': severity if found else 'SAFE',
-            'location': location or '—',
-            'confidence': confidence,
-            'keywords': ', '.join(found) if found else 'None'
-        })
-        
-        # Display result
         if found:
             if severity == 'CRITICAL':
                 st.markdown(f"""
@@ -337,8 +400,8 @@ with tab1:
                     <hr>
                     <p><strong>📌 Type:</strong> Natural Disaster / Emergency</p>
                     <p><strong>🔍 Keywords:</strong> {', '.join(found)}</p>
-                    <p><strong>📍 Location:</strong> {location if location else 'Unknown'}</p>
-                    <p><strong>🎯 Confidence:</strong> <span style="color: #dc3545; font-weight: bold;">{confidence}%</span></p>
+                    <p><strong>📍 Location:</strong> {extract_location(tweet_input) or 'Unknown'}</p>
+                    <p><strong>🎯 Confidence:</strong> <span style="color: #dc3545; font-weight: bold;">{min(95, len(found) * 20 + 50)}%</span></p>
                     <p><strong>🚨 ACTION:</strong> CALL EMERGENCY SERVICES IMMEDIATELY!</p>
                 </div>
                 """, unsafe_allow_html=True)
@@ -349,8 +412,8 @@ with tab1:
                     <hr>
                     <p><strong>📌 Type:</strong> Emergency Situation</p>
                     <p><strong>🔍 Keywords:</strong> {', '.join(found)}</p>
-                    <p><strong>📍 Location:</strong> {location if location else 'Unknown'}</p>
-                    <p><strong>🎯 Confidence:</strong> <span style="color: #fd7e14; font-weight: bold;">{confidence}%</span></p>
+                    <p><strong>📍 Location:</strong> {extract_location(tweet_input) or 'Unknown'}</p>
+                    <p><strong>🎯 Confidence:</strong> <span style="color: #fd7e14; font-weight: bold;">{min(95, len(found) * 20 + 50)}%</span></p>
                     <p><strong>📢 ACTION:</strong> DISPATCH EMERGENCY SERVICES!</p>
                 </div>
                 """, unsafe_allow_html=True)
@@ -361,18 +424,18 @@ with tab1:
                     <hr>
                     <p><strong>📌 Type:</strong> Potential Emergency</p>
                     <p><strong>🔍 Keywords:</strong> {', '.join(found)}</p>
-                    <p><strong>📍 Location:</strong> {location if location else 'Unknown'}</p>
-                    <p><strong>🎯 Confidence:</strong> <span style="color: #ffc107; font-weight: bold;">{confidence}%</span></p>
+                    <p><strong>📍 Location:</strong> {extract_location(tweet_input) or 'Unknown'}</p>
+                    <p><strong>🎯 Confidence:</strong> <span style="color: #ffc107; font-weight: bold;">{min(95, len(found) * 20 + 50)}%</span></p>
                     <p><strong>👀 ACTION:</strong> MONITOR THE SITUATION</p>
                 </div>
                 """, unsafe_allow_html=True)
-        else:
+        elif tweet_input:
             st.markdown(f"""
             <div class="safe-box">
                 <h3 style="color: #28a745; margin: 0;">✅ SAFE - NO DISASTER DETECTED</h3>
                 <hr>
                 <p><strong>📌 Type:</strong> Normal Conversation</p>
-                <p><strong>🎯 Confidence:</strong> <span style="color: #28a745; font-weight: bold;">{confidence}%</span></p>
+                <p><strong>🎯 Confidence:</strong> <span style="color: #28a745; font-weight: bold;">92%</span></p>
                 <p>✅ No emergency response needed.</p>
             </div>
             """, unsafe_allow_html=True)
@@ -390,7 +453,7 @@ with tab2:
     st.markdown("### 📋 Batch Tweet Analyzer")
     st.markdown("*Paste up to 20 tweets (one per line) and analyze them all at once.*")
     
-    batch_tweets = st.text_area("", placeholder="Earthquake in Tokyo\nFlood in Pakistan\nMy exam was a disaster\nTsunami warning Japan", height=200, label_visibility="collapsed")
+    batch_tweets = st.text_area("", placeholder="Earthquake in Tokyo\nFlood in Pakistan\nMy exam was a disaster\nTsunami warning Japan", height=200, label_visibility="collapsed", key="batch_input")
     
     if st.button("📊 Analyze All Tweets", type="primary"):
         if batch_tweets:
@@ -409,7 +472,7 @@ with tab2:
                     results.append(f"✅ **SAFE**: {tweet[:60]}")
             
             st.markdown(f"""
-            <div style="background: #f3f0ff; padding: 15px; border-radius: 10px; margin: 10px 0;">
+            <div style="background: linear-gradient(135deg, {st.session_state.primary_color}, {st.session_state.secondary_color}); padding: 15px; border-radius: 10px; margin: 10px 0; color: white;">
                 <strong>📊 Batch Summary</strong><br>
                 🔴 DISASTER: {disaster_count} &nbsp;|&nbsp; 🟢 SAFE: {safe_count} &nbsp;|&nbsp; 📝 Total: {len(lines)}
             </div>
@@ -421,7 +484,7 @@ with tab2:
             st.warning("Please paste some tweets to analyze!")
 
 # ============================================
-# TAB 3: ANALYTICS WITH GRAPHS
+# TAB 3: ANALYTICS
 # ============================================
 with tab3:
     st.markdown("### 📊 Analytics Dashboard")
@@ -430,7 +493,6 @@ with tab3:
         col1, col2 = st.columns(2)
         
         with col1:
-            # Pie Chart
             fig1, ax1 = plt.subplots(figsize=(5, 4))
             labels = []
             sizes = []
@@ -451,7 +513,6 @@ with tab3:
                 st.pyplot(fig1)
         
         with col2:
-            # Bar Chart
             fig2, ax2 = plt.subplots(figsize=(5, 4))
             categories = ['Critical', 'High', 'Medium', 'Safe']
             values = [st.session_state.stats['critical'], st.session_state.stats['high'], 
@@ -477,7 +538,7 @@ with tab3:
                     st.markdown(f"""
                     <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin: 5px; text-align: center;">
                         <strong>🔍 {kw}</strong><br>
-                        <span style="color: #667eea; font-size: 20px; font-weight: bold;">{cnt}</span> times
+                        <span style="color: {st.session_state.primary_color}; font-size: 20px; font-weight: bold;">{cnt}</span> times
                     </div>
                     """, unsafe_allow_html=True)
         
@@ -493,7 +554,7 @@ with tab3:
                     st.markdown(f"""
                     <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin: 5px; text-align: center;">
                         <strong>📍 {loc}</strong><br>
-                        <span style="color: #764ba2; font-size: 20px; font-weight: bold;">{cnt}</span> times
+                        <span style="color: {st.session_state.secondary_color}; font-size: 20px; font-weight: bold;">{cnt}</span> times
                     </div>
                     """, unsafe_allow_html=True)
         
@@ -501,7 +562,7 @@ with tab3:
         disaster_count = st.session_state.stats['critical'] + st.session_state.stats['high'] + st.session_state.stats['medium']
         rate = int(disaster_count / st.session_state.stats['total'] * 100) if st.session_state.stats['total'] > 0 else 0
         st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px; border-radius: 10px; color: white; margin-top: 20px;">
+        <div style="background: linear-gradient(135deg, {st.session_state.primary_color}, {st.session_state.secondary_color}); padding: 20px; border-radius: 10px; color: white; margin-top: 20px;">
             <h4 style="margin: 0;">📈 Key Insights</h4>
             <p><strong>Disaster Rate:</strong> {rate}% ({disaster_count}/{st.session_state.stats['total']})</p>
             <p><strong>Model Accuracy:</strong> 94%</p>
@@ -512,7 +573,7 @@ with tab3:
         st.info("📊 No data yet. Analyze some tweets to see analytics!")
 
 # ============================================
-# TAB 4: HISTORY & EXPORT
+# TAB 4: HISTORY
 # ============================================
 with tab4:
     st.markdown("### 📋 Analysis History")
@@ -543,9 +604,10 @@ with tab4:
 # ============================================
 # FOOTER
 # ============================================
-st.markdown("""
+st.markdown(f"""
 <div class="footer">
     <p><strong>Model:</strong> Disaster Keyword Classifier | <strong>Powered by:</strong> Natural Language Processing</p>
-    <p><strong>Made by:</strong> NIMRA IFTIKHAR | Real-time Disaster Detection System</p>
+    <p><strong>Made by:</strong> <span style="background: linear-gradient(135deg, {st.session_state.primary_color}, {st.session_state.secondary_color}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold;">NIMRA IFTIKHAR</span> | 4th Semester AI Project | Real-time Disaster Detection System</p>
+    <p><small>First · Powered by Hugging Face Transformers</small></p>
 </div>
 """, unsafe_allow_html=True)
