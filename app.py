@@ -103,14 +103,6 @@ def apply_theme():
         border-radius: 12px;
         margin-top: 20px;
     }}
-    
-    .feature-card {{
-        background: white;
-        padding: 10px;
-        border-radius: 10px;
-        text-align: center;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -179,74 +171,14 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ============================================
-# COOL INTRODUCTION SECTION
+# REAL WORLD IMPACT SECTION (ONLY THIS)
 # ============================================
-
-# REAL WORLD IMPACT
 st.markdown("### 📌 REAL WORLD IMPACT")
 col1, col2 = st.columns(2)
 with col1:
     st.info("**⚠️ The Problem:** During natural disasters, over **10,000 tweets** are posted per minute. Emergency services cannot read them all manually.")
 with col2:
     st.success("**✅ The Solution:** This AI system instantly detects **REAL emergencies** and filters out fake/joke tweets.")
-
-st.markdown("---")
-
-# FEATURES
-st.markdown("### 🌟 Features")
-feat_col1, feat_col2, feat_col3, feat_col4, feat_col5 = st.columns(5)
-with feat_col1:
-    st.markdown("✅ Real-time detection")
-with feat_col2:
-    st.markdown("✅ Severity assessment")
-with feat_col3:
-    st.markdown("✅ Location extraction")
-with feat_col4:
-    st.markdown("✅ Response actions")
-with feat_col5:
-    st.markdown("✅ Confidence scoring")
-
-feat_col1, feat_col2, feat_col3, feat_col4, feat_col5 = st.columns(5)
-with feat_col1:
-    st.markdown("✅ Batch analysis")
-with feat_col2:
-    st.markdown("✅ Analytics dashboard")
-with feat_col3:
-    st.markdown("✅ History tracking")
-with feat_col4:
-    st.markdown("✅ CSV export")
-with feat_col5:
-    st.markdown("✅ Customizable theme")
-
-st.markdown("---")
-
-# WHO BENEFITS
-st.markdown("### 👥 Who Benefits From This System")
-benefits_data = {
-    "Role": ["🚒 Firefighters", "🚑 EMS/Paramedics", "📰 News Media", "🏛️ Government"],
-    "How They Use It": [
-        "Detect fire/explosion reports instantly",
-        "Locate injured people faster",
-        "Verify breaking news authenticity",
-        "Coordinate rescue operations"
-    ]
-}
-benefits_df = pd.DataFrame(benefits_data)
-st.table(benefits_df)
-
-st.markdown("---")
-
-# SEVERITY GUIDE
-st.markdown("### 📊 Severity Guide")
-sev_col1, sev_col2, sev_col3, sev_col4 = st.columns(4)
-with sev_col1:
-    st.markdown("🔴🔴🔴 **CRITICAL** → Call 911")
-with sev_col2:
-    st.markdown("🔴🔴 **HIGH** → Dispatch services")
-with sev_col3:
-    st.markdown("🟡 **MEDIUM** → Monitor situation")
-with sev_col4:
-    st.markdown("🟢 **SAFE** → No action")
 
 st.markdown("---")
 
@@ -287,7 +219,7 @@ def get_disaster_type(keywords):
 # ============================================
 # TABS
 # ============================================
-tab1, tab2, tab3, tab4 = st.tabs(["📝 Single Tweet", "📋 Batch Analysis", "📊 Analytics Dashboard", "📜 History & Export"])
+tab1, tab2, tab3, tab4 = st.tabs(["📝 Single Tweet", "📋 Batch", "📊 Analytics", "📜 History"])
 
 # ============================================
 # TAB 1: SINGLE TWEET
@@ -432,7 +364,7 @@ with tab2:
                 st.write(r)
 
 # ============================================
-# TAB 3: ANALYTICS DASHBOARD
+# TAB 3: ANALYTICS
 # ============================================
 with tab3:
     if st.session_state.stats['total'] > 0:
@@ -484,7 +416,7 @@ with tab3:
         st.info("No data yet. Analyze some tweets!")
 
 # ============================================
-# TAB 4: HISTORY & EXPORT
+# TAB 4: HISTORY
 # ============================================
 with tab4:
     if st.session_state.history:
