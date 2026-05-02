@@ -16,6 +16,8 @@ if 'primary_color' not in st.session_state:
     st.session_state.primary_color = "#667eea"
 if 'secondary_color' not in st.session_state:
     st.session_state.secondary_color = "#764ba2"
+if 'current_tweet' not in st.session_state:
+    st.session_state.current_tweet = ""
 
 # ============================================
 # FUNCTION TO APPLY THEME
@@ -43,15 +45,6 @@ def apply_theme():
         padding: 20px;
         border-radius: 15px;
         color: white;
-    }}
-    
-    .stat-card {{
-        background: white;
-        padding: 15px;
-        border-radius: 12px;
-        text-align: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        border: 1px solid #e0e0e0;
     }}
     
     .critical-box {{
@@ -129,6 +122,9 @@ def apply_theme():
     </style>
     """, unsafe_allow_html=True)
 
+# Apply theme
+apply_theme()
+
 # ============================================
 # SIDEBAR - THEME CUSTOMIZATION
 # ============================================
@@ -187,9 +183,6 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-# Apply theme
-apply_theme()
-
 # ============================================
 # MAIN HEADER
 # ============================================
@@ -201,7 +194,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ============================================
-# INITIALIZE SESSION STATE
+# INITIALIZE SESSION STATE FOR DATA
 # ============================================
 if 'history' not in st.session_state:
     st.session_state.history = []
@@ -298,6 +291,13 @@ def analyze_tweet(tweet):
     return found, severity
 
 # ============================================
+# FUNCTION TO SET EXAMPLE TWEET
+# ============================================
+def set_example_tweet(tweet_text):
+    st.session_state.current_tweet = tweet_text
+    st.rerun()
+
+# ============================================
 # TABS
 # ============================================
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Single Text", "📋 Batch Analysis", "📊 Analytics", "📋 History"])
@@ -315,7 +315,8 @@ with tab1:
             placeholder="Paste any tweet — a disaster report, news headline, or message — and the AI will detect if it's a real emergency instantly.",
             height=150,
             label_visibility="collapsed",
-            key="tweet_input"
+            key="tweet_input",
+            value=st.session_state.current_tweet
         )
         
         col_btn1, col_btn2 = st.columns(2)
@@ -329,25 +330,19 @@ with tab1:
         example_col1, example_col2 = st.columns(2)
         with example_col1:
             if st.button("🌍 Earthquake in Tokyo", use_container_width=True):
-                st.session_state.tweet_input = "Earthquake in Tokyo! Buildings shaking, evacuations underway."
-                st.rerun()
+                set_example_tweet("Earthquake in Tokyo! Buildings shaking, evacuations underway.")
             if st.button("🌊 Tsunami warning Japan", use_container_width=True):
-                st.session_state.tweet_input = "Tsunami warning issued for Japan coastline."
-                st.rerun()
+                set_example_tweet("Tsunami warning issued for Japan coastline.")
             if st.button("🔥 Fire in Karachi", use_container_width=True):
-                st.session_state.tweet_input = "Fire at Karachi apartment building, people trapped inside."
-                st.rerun()
+                set_example_tweet("Fire at Karachi apartment building, people trapped inside.")
         
         with example_col2:
             if st.button("💥 Explosion reported", use_container_width=True):
-                st.session_state.tweet_input = "Explosion at chemical plant, multiple casualties reported."
-                st.rerun()
+                set_example_tweet("Explosion at chemical plant, multiple casualties reported.")
             if st.button("📚 My exam disaster", use_container_width=True):
-                st.session_state.tweet_input = "My exam was a complete disaster."
-                st.rerun()
+                set_example_tweet("My exam was a complete disaster.")
             if st.button("☀️ Beautiful day", use_container_width=True):
-                st.session_state.tweet_input = "Beautiful sunny day at the beach."
-                st.rerun()
+                set_example_tweet("Beautiful sunny day at the beach.")
     
     with col2:
         st.markdown("### 📊 Quick Stats")
@@ -383,7 +378,7 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
     
-    if analyze_btn:
+    if analyze_btn and tweet_input:
         found, severity = analyze_tweet(tweet_input)
         
         if found:
@@ -423,7 +418,7 @@ with tab1:
                     <p><strong>👀 ACTION:</strong> MONITOR THE SITUATION</p>
                 </div>
                 """, unsafe_allow_html=True)
-        elif tweet_input:
+        else:
             st.markdown(f"""
             <div class="safe-box">
                 <h3 style="color: #28a745; margin: 0;">✅ SAFE - NO DISASTER DETECTED</h3>
@@ -437,7 +432,7 @@ with tab1:
         st.rerun()
     
     elif clear_btn:
-        st.session_state.tweet_input = ""
+        st.session_state.current_tweet = ""
         st.rerun()
 
 # ============================================
