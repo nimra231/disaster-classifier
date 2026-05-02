@@ -546,7 +546,6 @@ with tab4:
 st.markdown("""
 <div class="footer">
     <p><strong>Model:</strong> Disaster Keyword Classifier | <strong>Powered by:</strong> Natural Language Processing</p>
-    <p><strong>Made by:</strong> NIMRA IFTIKHAR | 4th Semester AI Project | Real-time Disaster Detection System</p>
-    <p><small>First · Powered by Hugging Face Transformers</small></p>
+    <p><strong>Made by:</strong> NIMRA IFTIKHAR | Real-time Disaster Detection System</p>
 </div>
 """, unsafe_allow_html=True)
