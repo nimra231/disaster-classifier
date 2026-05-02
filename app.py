@@ -26,12 +26,10 @@ def apply_theme():
     
     st.markdown(f"""
     <style>
-    /* Main container */
     .main {{
         padding: 20px;
     }}
     
-    /* Gradient text for header */
     .gradient-text {{
         background: linear-gradient(135deg, {primary} 0%, {secondary} 100%);
         -webkit-background-clip: text;
@@ -40,7 +38,6 @@ def apply_theme():
         font-weight: bold;
     }}
     
-    /* Card gradient */
     .gradient-card {{
         background: linear-gradient(135deg, {primary} 0%, {secondary} 100%);
         padding: 20px;
@@ -48,7 +45,6 @@ def apply_theme():
         color: white;
     }}
     
-    /* Stat cards */
     .stat-card {{
         background: white;
         padding: 15px;
@@ -58,7 +54,6 @@ def apply_theme():
         border: 1px solid #e0e0e0;
     }}
     
-    /* Result boxes */
     .critical-box {{
         background: linear-gradient(135deg, #fef2f2, #fee2e2);
         border-left: 6px solid #dc3545;
@@ -91,7 +86,6 @@ def apply_theme():
         margin: 15px 0;
     }}
     
-    /* Button styling */
     .stButton > button {{
         background: linear-gradient(135deg, {primary}, {secondary}) !important;
         color: white !important;
@@ -107,7 +101,6 @@ def apply_theme():
         box-shadow: 0 5px 15px rgba(0,0,0,0.2) !important;
     }}
     
-    /* Footer */
     .footer {{
         text-align: center;
         padding: 20px;
@@ -117,7 +110,6 @@ def apply_theme():
         color: #999;
     }}
     
-    /* Stats card in sidebar */
     .stats-card {{
         background: linear-gradient(135deg, {primary}, {secondary});
         padding: 12px;
@@ -125,6 +117,14 @@ def apply_theme():
         text-align: center;
         color: white;
         margin: 8px 0;
+    }}
+    
+    .made-by-card {{
+        text-align: center;
+        padding: 15px;
+        background: linear-gradient(135deg, {primary}20, {secondary}20);
+        border-radius: 12px;
+        margin-top: 20px;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -135,11 +135,9 @@ def apply_theme():
 with st.sidebar:
     st.markdown("### 🎨 Customize Theme")
     
-    # Color pickers
     new_primary = st.color_picker("Primary Color", st.session_state.primary_color)
     new_secondary = st.color_picker("Secondary Color", st.session_state.secondary_color)
     
-    # Update colors if changed
     if new_primary != st.session_state.primary_color:
         st.session_state.primary_color = new_primary
         st.rerun()
@@ -180,12 +178,12 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Made by section
+    # MADE BY section
     st.markdown(f"""
-    <div style="text-align: center; padding: 15px; background: linear-gradient(135deg, {st.session_state.primary_color}20, {st.session_state.secondary_color}20); border-radius: 12px;">
-        <div style="font-size: 14px; color: #666;">👩‍💻 MADE BY</div>
-        <div style="font-size: 18px; font-weight: bold; background: linear-gradient(135deg, {st.session_state.primary_color}, {st.session_state.secondary_color}); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">NIMRA IFTIKHAR</div>
-        <div style="font-size: 11px; color: #888;">4th Semester AI Project</div>
+    <div class="made-by-card">
+        <div style="font-size: 12px; color: #666;">👩‍💻 MADE BY</div>
+        <div style="font-size: 20px; font-weight: bold; background: linear-gradient(135deg, {st.session_state.primary_color}, {st.session_state.secondary_color}); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">NIMRA IFTIKHAR</div>
+        <div style="font-size: 12px; color: #888;">AI Project | Real-Time Disaster Detection System</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -199,7 +197,6 @@ st.markdown(f"""
 <div style="text-align: center; margin-bottom: 30px;">
     <h1 class="gradient-text">🚨 Disaster Tweet Classifier</h1>
     <p style="color: #666;">AI-Powered Emergency Response | Real-time Disaster Detection</p>
-    <p style="font-size: 12px; color: #999;">Powered by Natural Language Processing</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -272,7 +269,6 @@ def analyze_tweet(tweet):
     confidence = min(95, len(found) * 20 + 50) if found else 92
     disaster_type = get_disaster_type(found) if found else 'Normal Conversation'
     
-    # Update stats
     if found:
         if severity == 'CRITICAL':
             st.session_state.stats['critical'] += 1
@@ -288,7 +284,6 @@ def analyze_tweet(tweet):
         st.session_state.all_locations.append(location)
     st.session_state.stats['total'] += 1
     
-    # Save to history
     st.session_state.history.insert(0, {
         'time': datetime.now().strftime('%H:%M:%S'),
         'date': datetime.now().strftime('%Y-%m-%d'),
@@ -388,7 +383,6 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
     
-    # Analysis Result
     if analyze_btn:
         found, severity = analyze_tweet(tweet_input)
         
@@ -526,7 +520,6 @@ with tab3:
                     ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5, str(val), ha='center')
             st.pyplot(fig2)
         
-        # Top Keywords
         if st.session_state.all_keywords:
             st.markdown("### 🔑 Top Keywords")
             kw_counter = Counter(st.session_state.all_keywords)
@@ -542,7 +535,6 @@ with tab3:
                     </div>
                     """, unsafe_allow_html=True)
         
-        # Top Locations
         if st.session_state.all_locations:
             st.markdown("### 📍 Top Locations")
             loc_counter = Counter(st.session_state.all_locations)
@@ -558,7 +550,6 @@ with tab3:
                     </div>
                     """, unsafe_allow_html=True)
         
-        # Key Insights
         disaster_count = st.session_state.stats['critical'] + st.session_state.stats['high'] + st.session_state.stats['medium']
         rate = int(disaster_count / st.session_state.stats['total'] * 100) if st.session_state.stats['total'] > 0 else 0
         st.markdown(f"""
@@ -589,7 +580,6 @@ with tab4:
             </div>
             """, unsafe_allow_html=True)
         
-        # Export CSV
         st.markdown("---")
         if st.button("📥 Export to CSV", type="primary"):
             output = io.StringIO()
@@ -606,8 +596,6 @@ with tab4:
 # ============================================
 st.markdown(f"""
 <div class="footer">
-    <p><strong>Model:</strong> Disaster Keyword Classifier | <strong>Powered by:</strong> Natural Language Processing</p>
-    <p><strong>Made by:</strong> <span style="background: linear-gradient(135deg, {st.session_state.primary_color}, {st.session_state.secondary_color}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold;">NIMRA IFTIKHAR</span> | 4th Semester AI Project | Real-time Disaster Detection System</p>
-    <p><small>First · Powered by Hugging Face Transformers</small></p>
+    <p><strong>MADE BY: NIMRA IFTIKHAR</strong> | AI Project | Real-Time Disaster Detection System</p>
 </div>
 """, unsafe_allow_html=True)
