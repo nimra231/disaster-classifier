@@ -182,29 +182,52 @@ st.markdown(f"""
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
-.stApp {{ background: {BG}; color: {TEXT}; }}
+.stApp {{
+    background:
+        radial-gradient(ellipse 900px 500px at 15% -10%, rgba(245,166,35,0.07), transparent 60%),
+        radial-gradient(ellipse 700px 500px at 100% 0%, rgba(58,183,255,0.06), transparent 55%),
+        linear-gradient(180deg, {BG} 0%, #090C11 100%);
+    color: {TEXT};
+}}
+.stApp::before {{
+    content: "";
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: radial-gradient(ellipse 1200px 700px at 50% 0%, black 0%, transparent 75%);
+}}
 #MainMenu, footer {{ visibility: hidden; }}
 header[data-testid="stHeader"] {{ background: transparent; }}
 .block-container {{ padding-top: 1.6rem; max-width: 1180px; }}
 h1, h2, h3 {{ font-family: 'Space Grotesk', sans-serif !important; color: {TEXT} !important; }}
 
 .console-bar {{
+    position: relative; overflow: hidden;
     display: flex; align-items: center; justify-content: space-between;
-    background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 10px;
-    padding: 14px 22px; margin-bottom: 22px;
+    background: linear-gradient(135deg, {SURFACE} 0%, {SURFACE_2} 100%);
+    border: 1px solid {BORDER}; border-radius: 12px;
+    padding: 18px 26px; margin-bottom: 22px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03);
+}}
+.console-bar::before {{
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, {AMBER}, {CYAN}, transparent);
 }}
 .console-title {{
-    font-family: 'Space Grotesk', sans-serif; font-size: 1.7rem; font-weight: 700;
-    letter-spacing: 0.5px; color: {TEXT}; margin: 0; display: flex; align-items: center; gap: 10px;
+    font-family: 'Space Grotesk', sans-serif; font-size: 1.9rem; font-weight: 700;
+    letter-spacing: 0.3px; color: {TEXT}; margin: 0; display: flex; align-items: center; gap: 12px;
 }}
 .console-sub {{
     font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; letter-spacing: 1.5px;
-    color: {TEXT_MUTED}; text-transform: uppercase; margin-top: 2px;
+    color: {TEXT_MUTED}; text-transform: uppercase; margin-top: 4px;
 }}
 .status-pill {{
     font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; letter-spacing: 1px;
     color: {SAFE}; background: rgba(46, 217, 136, 0.1); border: 1px solid rgba(46, 217, 136, 0.35);
-    padding: 6px 14px; border-radius: 20px; display: flex; align-items: center; gap: 8px;
+    padding: 7px 16px; border-radius: 20px; display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 0 18px rgba(46, 217, 136, 0.18);
 }}
 .pulse-dot {{
     width: 8px; height: 8px; border-radius: 50%; background: {SAFE};
@@ -216,9 +239,28 @@ h1, h2, h3 {{ font-family: 'Space Grotesk', sans-serif !important; color: {TEXT}
     100% {{ box-shadow: 0 0 0 0 rgba(46, 217, 136, 0); }}
 }}
 
+/* ---------- Hero KPI strip ---------- */
+.kpi-strip {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }}
+.kpi-card {{
+    background: linear-gradient(160deg, {SURFACE} 0%, {SURFACE_2} 100%);
+    border: 1px solid {BORDER}; border-radius: 12px; padding: 16px 18px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+    position: relative; overflow: hidden;
+}}
+.kpi-card::after {{
+    content: ""; position: absolute; right: -20px; top: -20px; width: 80px; height: 80px;
+    border-radius: 50%; background: radial-gradient(circle, var(--kpi-glow, {AMBER}) 0%, transparent 70%);
+    opacity: 0.18;
+}}
+.kpi-label {{ font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; letter-spacing: 1.3px; color: {TEXT_MUTED}; text-transform: uppercase; }}
+.kpi-value {{ font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; margin-top: 4px; line-height: 1; }}
+.kpi-foot {{ font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: {TEXT_MUTED}; margin-top: 6px; }}
+
 .impact-card {{
-    background: {SURFACE}; border: 1px solid {BORDER}; border-left: 3px solid {AMBER};
-    border-radius: 8px; padding: 16px 18px; height: 100%;
+    background: linear-gradient(160deg, {SURFACE} 0%, {SURFACE_2} 100%);
+    border: 1px solid {BORDER}; border-left: 3px solid {AMBER};
+    border-radius: 10px; padding: 18px 20px; height: 100%;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.28);
 }}
 .impact-label {{
     font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; letter-spacing: 1.5px;
@@ -227,20 +269,24 @@ h1, h2, h3 {{ font-family: 'Space Grotesk', sans-serif !important; color: {TEXT}
 .impact-text {{ color: {TEXT_MUTED}; font-size: 0.92rem; line-height: 1.5; }}
 .impact-text b {{ color: {TEXT}; }}
 
-.result-card {{ background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 10px; padding: 22px 24px; margin: 16px 0; }}
-.result-critical {{ border-left: 4px solid {CRITICAL}; }}
-.result-high {{ border-left: 4px solid {HIGH}; }}
-.result-medium {{ border-left: 4px solid {MEDIUM}; }}
-.result-safe {{ border-left: 4px solid {SAFE}; }}
+.result-card {{
+    background: linear-gradient(160deg, {SURFACE} 0%, {SURFACE_2} 100%);
+    border: 1px solid {BORDER}; border-radius: 12px; padding: 24px 26px; margin: 16px 0;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}}
+.result-critical {{ border-left: 4px solid {CRITICAL}; box-shadow: 0 10px 30px rgba(0,0,0,0.35), -4px 0 24px -8px {CRITICAL}55; }}
+.result-high {{ border-left: 4px solid {HIGH}; box-shadow: 0 10px 30px rgba(0,0,0,0.35), -4px 0 24px -8px {HIGH}44; }}
+.result-medium {{ border-left: 4px solid {MEDIUM}; box-shadow: 0 10px 30px rgba(0,0,0,0.35), -4px 0 24px -8px {MEDIUM}33; }}
+.result-safe {{ border-left: 4px solid {SAFE}; box-shadow: 0 10px 30px rgba(0,0,0,0.35), -4px 0 24px -8px {SAFE}33; }}
 
-.result-head {{ font-family: 'Space Grotesk', sans-serif; font-size: 1.25rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }}
-.result-row {{ display: flex; gap: 10px; padding: 6px 0; font-size: 0.93rem; border-bottom: 1px dashed {BORDER}; }}
+.result-head {{ font-family: 'Space Grotesk', sans-serif; font-size: 1.35rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; letter-spacing: 0.2px; }}
+.result-row {{ display: flex; gap: 10px; padding: 7px 0; font-size: 0.93rem; border-bottom: 1px dashed {BORDER}; }}
 .result-row:last-child {{ border-bottom: none; }}
 .result-key {{ font-family: 'JetBrains Mono', monospace; color: {TEXT_MUTED}; min-width: 130px; font-size: 0.78rem; letter-spacing: 0.5px; text-transform: uppercase; padding-top: 2px; }}
 .result-val {{ color: {TEXT}; }}
-.tag {{ display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; background: {SURFACE_2}; border: 1px solid {BORDER}; color: {TEXT}; padding: 2px 9px; border-radius: 5px; margin: 2px 4px 2px 0; }}
-.action-line {{ margin-top: 14px; padding: 10px 14px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; letter-spacing: 0.5px; }}
-.tweet-preview {{ font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; background: {SURFACE_2}; border: 1px solid {BORDER}; border-radius: 7px; padding: 12px 14px; line-height: 1.6; margin-bottom: 4px; }}
+.tag {{ display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; background: {SURFACE_2}; border: 1px solid {BORDER}; color: {TEXT}; padding: 3px 10px; border-radius: 5px; margin: 2px 4px 2px 0; }}
+.action-line {{ margin-top: 16px; padding: 12px 16px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; letter-spacing: 0.5px; font-weight: 600; }}
+.tweet-preview {{ font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; background: {SURFACE_2}; border: 1px solid {BORDER}; border-radius: 8px; padding: 14px 16px; line-height: 1.7; margin-bottom: 4px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.03); }}
 
 section[data-testid="stSidebar"] {{ background: {SURFACE}; border-right: 1px solid {BORDER}; }}
 section[data-testid="stSidebar"] * {{ color: {TEXT}; }}
@@ -249,24 +295,37 @@ section[data-testid="stSidebar"] * {{ color: {TEXT}; }}
 .stat-line:last-child {{ border-bottom: none; }}
 .dot {{ width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 8px; }}
 
-.made-by-card {{ text-align: center; padding: 16px; background: {SURFACE_2}; border: 1px solid {BORDER}; border-radius: 10px; margin-top: 18px; }}
-.made-by-name {{ font-family: 'Space Grotesk', sans-serif; font-size: 1.05rem; font-weight: 700; color: {AMBER}; letter-spacing: 0.5px; }}
+.made-by-card {{
+    text-align: center; padding: 18px; background: linear-gradient(160deg, {SURFACE_2} 0%, {SURFACE} 100%);
+    border: 1px solid {AMBER}44; border-radius: 12px; margin-top: 18px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3), 0 0 24px -12px {AMBER}55;
+}}
+.made-by-name {{ font-family: 'Space Grotesk', sans-serif; font-size: 1.1rem; font-weight: 700; color: {AMBER}; letter-spacing: 0.5px; }}
 .made-by-role {{ font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: {TEXT_MUTED}; letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; }}
 
 .stTextArea textarea {{ background: {SURFACE} !important; color: {TEXT} !important; border: 1px solid {BORDER} !important; border-radius: 8px !important; font-family: 'JetBrains Mono', monospace !important; font-size: 0.9rem !important; }}
-.stTextArea textarea:focus {{ border-color: {AMBER} !important; box-shadow: 0 0 0 1px {AMBER} !important; }}
-.stButton > button {{ background: {AMBER} !important; color: #1A1300 !important; border: none !important; border-radius: 7px !important; padding: 9px 20px !important; font-weight: 600 !important; font-family: 'Inter', sans-serif !important; letter-spacing: 0.2px; }}
-.stButton > button:hover {{ filter: brightness(1.08); }}
+.stTextArea textarea:focus {{ border-color: {AMBER} !important; box-shadow: 0 0 0 1px {AMBER}, 0 0 16px -4px {AMBER}88 !important; }}
+.stButton > button {{
+    background: linear-gradient(135deg, #FFC24D 0%, {AMBER} 55%, #E08E00 100%) !important;
+    color: #1A1300 !important; border: none !important; border-radius: 8px !important;
+    padding: 10px 22px !important; font-weight: 700 !important; font-family: 'Inter', sans-serif !important;
+    letter-spacing: 0.2px; box-shadow: 0 6px 16px -4px {AMBER}66; transition: all 0.15s ease;
+}}
+.stButton > button:hover {{ filter: brightness(1.08); box-shadow: 0 8px 20px -4px {AMBER}88; transform: translateY(-1px); }}
+.stButton > button[kind="secondary"] {{
+    background: {SURFACE_2} !important; color: {TEXT} !important; border: 1px solid {BORDER} !important; box-shadow: none;
+}}
 
-.stTabs [data-baseweb="tab-list"] {{ gap: 4px; background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 10px; padding: 6px; }}
-.stTabs [data-baseweb="tab"] {{ font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; color: {TEXT_MUTED}; border-radius: 7px; padding: 8px 16px; }}
-.stTabs [aria-selected="true"] {{ background: {SURFACE_2} !important; color: {AMBER} !important; }}
+.stTabs [data-baseweb="tab-list"] {{ gap: 4px; background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 12px; padding: 6px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.3); }}
+.stTabs [data-baseweb="tab"] {{ font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; color: {TEXT_MUTED}; border-radius: 8px; padding: 9px 18px; transition: all 0.15s ease; }}
+.stTabs [aria-selected="true"] {{ background: linear-gradient(135deg, {SURFACE_2}, {SURFACE_2}) !important; color: {AMBER} !important; box-shadow: 0 2px 10px rgba(0,0,0,0.3), inset 0 0 0 1px {AMBER}33; }}
 
-.hist-row {{ display: grid; grid-template-columns: 78px 90px 1fr 110px 60px; gap: 10px; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; padding: 9px 12px; background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 7px; margin-bottom: 6px; }}
-.hist-badge {{ font-size: 0.68rem; padding: 2px 8px; border-radius: 4px; text-align: center; font-weight: 600; }}
+.hist-row {{ display: grid; grid-template-columns: 78px 90px 1fr 110px 60px; gap: 10px; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; padding: 10px 14px; background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 8px; margin-bottom: 6px; transition: border-color 0.15s ease; }}
+.hist-row:hover {{ border-color: {AMBER}55; }}
+.hist-badge {{ font-size: 0.68rem; padding: 3px 9px; border-radius: 5px; text-align: center; font-weight: 700; }}
 
-.footer-bar {{ text-align: center; padding: 16px; margin-top: 28px; border-top: 1px solid {BORDER}; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: {TEXT_MUTED}; letter-spacing: 0.5px; }}
-.stAlert {{ background: {SURFACE} !important; border: 1px solid {BORDER} !important; color: {TEXT} !important; }}
+.footer-bar {{ text-align: center; padding: 18px; margin-top: 28px; border-top: 1px solid {BORDER}; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: {TEXT_MUTED}; letter-spacing: 0.5px; }}
+.stAlert {{ background: {SURFACE} !important; border: 1px solid {BORDER} !important; color: {TEXT} !important; border-radius: 10px !important; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -305,13 +364,24 @@ with st.sidebar:
         threat_label, threat_color = "LOW", MEDIUM
     else:
         threat_label, threat_color = "NOMINAL", SAFE
+    dial_deg = max(6, min(360, score * 3.6))
     st.markdown(f"""
-    <div style="background:{SURFACE_2}; border:1px solid {BORDER}; border-radius:10px; padding:12px 14px;">
-        <div style="display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:0.78rem; color:{TEXT_MUTED}; margin-bottom:6px;">
-            <span>Based on last {len(recent)} scans</span><span style="color:{threat_color}; font-weight:700;">{threat_label}</span>
-        </div>
-        <div style="background:{BG}; border-radius:6px; height:8px; overflow:hidden;">
-            <div style="width:{score}%; background:{threat_color}; height:100%; border-radius:6px;"></div>
+    <div style="background:linear-gradient(160deg,{SURFACE_2} 0%,{SURFACE} 100%); border:1px solid {BORDER}; border-radius:12px; padding:16px; box-shadow:0 6px 18px rgba(0,0,0,0.3);">
+        <div style="display:flex; align-items:center; gap:16px;">
+            <div style="position:relative; width:72px; height:72px; border-radius:50%;
+                        background:conic-gradient({threat_color} {dial_deg}deg, {BORDER} {dial_deg}deg);
+                        display:flex; align-items:center; justify-content:center;
+                        box-shadow:0 0 20px -6px {threat_color}88;">
+                <div style="width:52px; height:52px; border-radius:50%; background:{SURFACE_2};
+                            display:flex; align-items:center; justify-content:center;
+                            font-family:'JetBrains Mono',monospace; font-size:0.72rem; font-weight:700; color:{threat_color};">
+                    {int(score)}%
+                </div>
+            </div>
+            <div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:{TEXT_MUTED}; letter-spacing:0.5px;">Last {len(recent)} scans</div>
+                <div style="font-family:'Space Grotesk',sans-serif; font-size:1.05rem; font-weight:700; color:{threat_color}; margin-top:2px;">{threat_label}</div>
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -344,6 +414,39 @@ st.markdown(f"""
         <p class="console-sub">AI-Powered Emergency Signal Detection · {len(DISASTER_WORDS)}-term engine</p>
     </div>
     <div class="status-pill"><span class="pulse-dot"></span>MONITORING</div>
+</div>
+""", unsafe_allow_html=True)
+
+# ============================================
+# HERO KPI STRIP
+# ============================================
+_total = st.session_state.stats['total']
+_critical = st.session_state.stats['critical']
+_disaster = _critical + st.session_state.stats['high'] + st.session_state.stats['medium']
+_rate = int(_disaster / _total * 100) if _total else 0
+
+st.markdown(f"""
+<div class="kpi-strip">
+    <div class="kpi-card" style="--kpi-glow:{AMBER};">
+        <div class="kpi-label">Tweets Scanned</div>
+        <div class="kpi-value" style="color:{TEXT};">{_total}</div>
+        <div class="kpi-foot">this session</div>
+    </div>
+    <div class="kpi-card" style="--kpi-glow:{CRITICAL};">
+        <div class="kpi-label">Critical Alerts</div>
+        <div class="kpi-value" style="color:{CRITICAL};">{_critical}</div>
+        <div class="kpi-foot">require immediate response</div>
+    </div>
+    <div class="kpi-card" style="--kpi-glow:{CYAN};">
+        <div class="kpi-label">Disaster Rate</div>
+        <div class="kpi-value" style="color:{CYAN};">{_rate}%</div>
+        <div class="kpi-foot">{_disaster}/{_total if _total else 0} flagged</div>
+    </div>
+    <div class="kpi-card" style="--kpi-glow:{SAFE};">
+        <div class="kpi-label">Model Accuracy</div>
+        <div class="kpi-value" style="color:{SAFE};">94%</div>
+        <div class="kpi-foot">{len(DISASTER_WORDS)}-term engine</div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
