@@ -9,23 +9,26 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 
+import random
+
 st.set_page_config(page_title="SENTINEL | Disaster Tweet Classifier", page_icon="🛰️", layout="wide")
 
 # ============================================
-# DESIGN TOKENS  —  "Situation Room" console theme
+# DESIGN TOKENS  —  Cinematic "Disaster Command" theme
 # ============================================
-BG          = "#0A0E14"
+BG          = "#05070A"
 SURFACE     = "#121826"
 SURFACE_2   = "#1A2233"
-BORDER      = "#242C3D"
-TEXT        = "#E7EAF2"
+GLASS       = "rgba(18,24,38,0.66)"
+BORDER      = "rgba(255,255,255,0.09)"
+TEXT        = "#F1F3F8"
 TEXT_MUTED  = "#8B93A7"
-AMBER       = "#F5A623"   # brand / primary accent
-CRITICAL    = "#FF4D5E"
+AMBER       = "#F5A623"   # brand / warning accent
+CRITICAL    = "#E8384F"   # cinematic crimson
 HIGH        = "#FF8A3D"
 MEDIUM      = "#F5C518"
 SAFE        = "#2ED988"
-CYAN        = "#3AB7FF"
+CYAN        = "#2FD1C5"   # teal data accent
 
 SEVERITY_COLOR = {'CRITICAL': CRITICAL, 'HIGH': HIGH, 'MEDIUM': MEDIUM, 'SAFE': SAFE}
 SEVERITY_RANK  = {'CRITICAL': 3, 'HIGH': 2, 'MEDIUM': 1}
@@ -179,55 +182,90 @@ def highlight_text(text: str, found: list) -> str:
 # ============================================
 st.markdown(f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
+
 .stApp {{
     background:
-        radial-gradient(ellipse 900px 500px at 15% -10%, rgba(245,166,35,0.07), transparent 60%),
-        radial-gradient(ellipse 700px 500px at 100% 0%, rgba(58,183,255,0.06), transparent 55%),
-        linear-gradient(180deg, {BG} 0%, #090C11 100%);
+        radial-gradient(ellipse 1000px 600px at 20% -10%, rgba(232,56,79,0.10), transparent 60%),
+        radial-gradient(ellipse 800px 550px at 100% 0%, rgba(47,209,197,0.08), transparent 55%),
+        linear-gradient(180deg, {BG} 0%, #030405 100%);
     color: {TEXT};
 }}
+/* film grain + grid, fixed full-page overlay */
 .stApp::before {{
     content: "";
     position: fixed; inset: 0; pointer-events: none; z-index: 0;
     background-image:
-        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-    background-size: 42px 42px;
-    mask-image: radial-gradient(ellipse 1200px 700px at 50% 0%, black 0%, transparent 75%);
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse 1200px 700px at 50% 0%, black 0%, transparent 78%);
 }}
+.stApp::after {{
+    content: "";
+    position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.5;
+    background: radial-gradient(ellipse 90% 70% at 50% 40%, transparent 55%, rgba(0,0,0,0.55) 100%);
+}}
+
 #MainMenu, footer {{ visibility: hidden; }}
 header[data-testid="stHeader"] {{ background: transparent; }}
-.block-container {{ padding-top: 1.6rem; max-width: 1180px; }}
+.block-container {{ padding-top: 1.2rem; max-width: 1180px; }}
 h1, h2, h3 {{ font-family: 'Space Grotesk', sans-serif !important; color: {TEXT} !important; }}
 
-.console-bar {{
+/* ---------- Cinematic hero ---------- */
+.hero {{
     position: relative; overflow: hidden;
-    display: flex; align-items: center; justify-content: space-between;
-    background: linear-gradient(135deg, {SURFACE} 0%, {SURFACE_2} 100%);
-    border: 1px solid {BORDER}; border-radius: 12px;
-    padding: 18px 26px; margin-bottom: 22px;
-    box-shadow: 0 8px 28px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03);
+    border-radius: 16px; border: 1px solid {BORDER};
+    padding: 46px 40px 34px 40px; margin-bottom: 22px;
+    background: linear-gradient(180deg, rgba(5,7,10,0.2) 0%, rgba(5,7,10,0.85) 78%, {BG} 100%), #0B0E14;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55);
 }}
-.console-bar::before {{
-    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, {AMBER}, {CYAN}, transparent);
+.hero-skyline {{ position: absolute; left: 0; right: 0; bottom: 0; height: 130px; opacity: 0.9; }}
+.hero-embers {{ position: absolute; inset: 0; overflow: hidden; pointer-events: none; }}
+.ember {{
+    position: absolute; bottom: -10px; width: 4px; height: 4px; border-radius: 50%;
+    background: radial-gradient(circle, {AMBER}, transparent 70%);
+    box-shadow: 0 0 6px 2px {AMBER}aa;
+    animation: rise linear infinite;
 }}
-.console-title {{
-    font-family: 'Space Grotesk', sans-serif; font-size: 1.9rem; font-weight: 700;
-    letter-spacing: 0.3px; color: {TEXT}; margin: 0; display: flex; align-items: center; gap: 12px;
+@keyframes rise {{
+    0%   {{ transform: translateY(0) translateX(0); opacity: 0; }}
+    10%  {{ opacity: 1; }}
+    100% {{ transform: translateY(-260px) translateX(var(--drift, 20px)); opacity: 0; }}
 }}
-.console-sub {{
-    font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; letter-spacing: 1.5px;
-    color: {TEXT_MUTED}; text-transform: uppercase; margin-top: 4px;
+.hero-scanline {{
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, {CYAN}, transparent);
+    box-shadow: 0 0 12px 2px {CYAN}aa;
+    animation: scan 4.5s ease-in-out infinite;
+    opacity: 0.7;
+}}
+@keyframes scan {{
+    0%, 100% {{ top: 8%; opacity: 0; }}
+    50% {{ top: 92%; opacity: 0.8; }}
+}}
+.hero-eyebrow {{
+    font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; letter-spacing: 3px;
+    color: {CRITICAL}; text-transform: uppercase; display: flex; align-items: center; gap: 8px;
+    position: relative; z-index: 2;
+}}
+.hero-title {{
+    font-family: 'Bebas Neue', sans-serif; font-size: 4.6rem; line-height: 0.95;
+    letter-spacing: 2px; color: {TEXT}; margin: 6px 0 4px 0; position: relative; z-index: 2;
+    text-shadow: 0 4px 30px rgba(232,56,79,0.25);
+}}
+.hero-title span {{ color: {AMBER}; }}
+.hero-sub {{
+    font-family: 'Inter', sans-serif; font-size: 1rem; color: {TEXT_MUTED}; max-width: 560px;
+    position: relative; z-index: 2; line-height: 1.5;
 }}
 .status-pill {{
     font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; letter-spacing: 1px;
     color: {SAFE}; background: rgba(46, 217, 136, 0.1); border: 1px solid rgba(46, 217, 136, 0.35);
-    padding: 7px 16px; border-radius: 20px; display: flex; align-items: center; gap: 8px;
-    box-shadow: 0 0 18px rgba(46, 217, 136, 0.18);
+    padding: 7px 16px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px;
+    box-shadow: 0 0 18px rgba(46, 217, 136, 0.18); position: relative; z-index: 2; margin-top: 14px;
 }}
 .pulse-dot {{
     width: 8px; height: 8px; border-radius: 50%; background: {SAFE};
@@ -239,28 +277,34 @@ h1, h2, h3 {{ font-family: 'Space Grotesk', sans-serif !important; color: {TEXT}
     100% {{ box-shadow: 0 0 0 0 rgba(46, 217, 136, 0); }}
 }}
 
+/* ---------- 3D tilt utility ---------- */
+.tilt {{ transition: transform 0.25s ease, box-shadow 0.25s ease; transform-style: preserve-3d; }}
+.tilt:hover {{ transform: perspective(700px) rotateX(3deg) rotateY(-3deg) translateY(-5px); }}
+
 /* ---------- Hero KPI strip ---------- */
 .kpi-strip {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }}
 .kpi-card {{
-    background: linear-gradient(160deg, {SURFACE} 0%, {SURFACE_2} 100%);
+    background: linear-gradient(160deg, {GLASS} 0%, rgba(26,34,51,0.7) 100%);
+    backdrop-filter: blur(10px);
     border: 1px solid {BORDER}; border-radius: 12px; padding: 16px 18px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 26px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
     position: relative; overflow: hidden;
 }}
 .kpi-card::after {{
     content: ""; position: absolute; right: -20px; top: -20px; width: 80px; height: 80px;
     border-radius: 50%; background: radial-gradient(circle, var(--kpi-glow, {AMBER}) 0%, transparent 70%);
-    opacity: 0.18;
+    opacity: 0.22;
 }}
 .kpi-label {{ font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; letter-spacing: 1.3px; color: {TEXT_MUTED}; text-transform: uppercase; }}
-.kpi-value {{ font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; margin-top: 4px; line-height: 1; }}
+.kpi-value {{ font-family: 'Space Grotesk', sans-serif; font-size: 2.1rem; font-weight: 700; margin-top: 4px; line-height: 1; }}
 .kpi-foot {{ font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: {TEXT_MUTED}; margin-top: 6px; }}
 
 .impact-card {{
-    background: linear-gradient(160deg, {SURFACE} 0%, {SURFACE_2} 100%);
+    background: linear-gradient(160deg, {GLASS} 0%, rgba(26,34,51,0.7) 100%);
+    backdrop-filter: blur(10px);
     border: 1px solid {BORDER}; border-left: 3px solid {AMBER};
     border-radius: 10px; padding: 18px 20px; height: 100%;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.28);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
 }}
 .impact-label {{
     font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; letter-spacing: 1.5px;
@@ -270,14 +314,15 @@ h1, h2, h3 {{ font-family: 'Space Grotesk', sans-serif !important; color: {TEXT}
 .impact-text b {{ color: {TEXT}; }}
 
 .result-card {{
-    background: linear-gradient(160deg, {SURFACE} 0%, {SURFACE_2} 100%);
-    border: 1px solid {BORDER}; border-radius: 12px; padding: 24px 26px; margin: 16px 0;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    background: linear-gradient(160deg, {GLASS} 0%, rgba(26,34,51,0.75) 100%);
+    backdrop-filter: blur(12px);
+    border: 1px solid {BORDER}; border-radius: 14px; padding: 26px 28px; margin: 16px 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25), 0 18px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
 }}
-.result-critical {{ border-left: 4px solid {CRITICAL}; box-shadow: 0 10px 30px rgba(0,0,0,0.35), -4px 0 24px -8px {CRITICAL}55; }}
-.result-high {{ border-left: 4px solid {HIGH}; box-shadow: 0 10px 30px rgba(0,0,0,0.35), -4px 0 24px -8px {HIGH}44; }}
-.result-medium {{ border-left: 4px solid {MEDIUM}; box-shadow: 0 10px 30px rgba(0,0,0,0.35), -4px 0 24px -8px {MEDIUM}33; }}
-.result-safe {{ border-left: 4px solid {SAFE}; box-shadow: 0 10px 30px rgba(0,0,0,0.35), -4px 0 24px -8px {SAFE}33; }}
+.result-critical {{ border-left: 4px solid {CRITICAL}; box-shadow: 0 4px 10px rgba(0,0,0,0.25), 0 18px 40px rgba(0,0,0,0.4), -6px 0 32px -10px {CRITICAL}77; }}
+.result-high {{ border-left: 4px solid {HIGH}; box-shadow: 0 4px 10px rgba(0,0,0,0.25), 0 18px 40px rgba(0,0,0,0.4), -6px 0 32px -10px {HIGH}55; }}
+.result-medium {{ border-left: 4px solid {MEDIUM}; box-shadow: 0 4px 10px rgba(0,0,0,0.25), 0 18px 40px rgba(0,0,0,0.4), -6px 0 32px -10px {MEDIUM}44; }}
+.result-safe {{ border-left: 4px solid {SAFE}; box-shadow: 0 4px 10px rgba(0,0,0,0.25), 0 18px 40px rgba(0,0,0,0.4), -6px 0 32px -10px {SAFE}44; }}
 
 .result-head {{ font-family: 'Space Grotesk', sans-serif; font-size: 1.35rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; letter-spacing: 0.2px; }}
 .result-row {{ display: flex; gap: 10px; padding: 7px 0; font-size: 0.93rem; border-bottom: 1px dashed {BORDER}; }}
@@ -405,15 +450,67 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 # ============================================
-# CONSOLE HEADER
+# CINEMATIC HERO
 # ============================================
+random.seed(7)  # stable ember layout across reruns
+embers_html = "".join(
+    f'<span class="ember" style="left:{random.randint(2, 98)}%; '
+    f'animation-duration:{random.uniform(3.5, 7.5):.1f}s; '
+    f'animation-delay:{random.uniform(0, 6):.1f}s; '
+    f'--drift:{random.randint(-30, 30)}px;"></span>'
+    for _ in range(22)
+)
+
+SKYLINE_SVG = f"""
+<svg class="hero-skyline" viewBox="0 0 1200 160" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="glow" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="{CRITICAL}" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="{CRITICAL}" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="90" width="1200" height="70" fill="url(#glow)"/>
+  <g fill="#0B0E14" stroke="rgba(255,255,255,0.06)">
+    <rect x="20" y="60" width="60" height="100"/>
+    <rect x="90" y="30" width="50" height="130"/>
+    <rect x="150" y="75" width="45" height="85"/>
+    <rect x="205" y="15" width="55" height="145"/>
+    <rect x="270" y="95" width="40" height="65"/>
+    <rect x="320" y="50" width="65" height="110"/>
+    <rect x="400" y="20" width="50" height="140"/>
+    <rect x="460" y="80" width="45" height="80"/>
+    <rect x="515" y="40" width="60" height="120"/>
+    <rect x="585" y="65" width="40" height="95"/>
+    <rect x="635" y="10" width="55" height="150"/>
+    <rect x="700" y="90" width="50" height="70"/>
+    <rect x="760" y="45" width="60" height="115"/>
+    <rect x="830" y="70" width="45" height="90"/>
+    <rect x="885" y="25" width="55" height="135"/>
+    <rect x="950" y="85" width="40" height="75"/>
+    <rect x="1000" y="55" width="65" height="105"/>
+    <rect x="1075" y="15" width="50" height="145"/>
+    <rect x="1135" y="75" width="45" height="85"/>
+  </g>
+  <g fill="{AMBER}" opacity="0.55">
+    <rect x="35" y="80" width="6" height="6"/><rect x="55" y="100" width="6" height="6"/>
+    <rect x="105" y="55" width="6" height="6"/><rect x="220" y="45" width="6" height="6"/>
+    <rect x="335" y="75" width="6" height="6"/><rect x="415" y="50" width="6" height="6"/>
+    <rect x="530" y="70" width="6" height="6"/><rect x="650" y="40" width="6" height="6"/>
+    <rect x="775" y="80" width="6" height="6"/><rect x="900" y="55" width="6" height="6"/>
+    <rect x="1015" y="85" width="6" height="6"/><rect x="1090" y="45" width="6" height="6"/>
+  </g>
+</svg>
+"""
+
 st.markdown(f"""
-<div class="console-bar">
-    <div>
-        <p class="console-title">🛰️ SENTINEL <span style="color:{TEXT_MUTED}; font-weight:500; font-size:1rem;">— Disaster Tweet Classifier</span></p>
-        <p class="console-sub">AI-Powered Emergency Signal Detection · {len(DISASTER_WORDS)}-term engine</p>
-    </div>
+<div class="hero">
+    <div class="hero-embers">{embers_html}</div>
+    <div class="hero-scanline"></div>
+    <div class="hero-eyebrow"><span class="pulse-dot" style="background:{CRITICAL}; box-shadow:0 0 0 0 {CRITICAL}99;"></span>LIVE EMERGENCY SIGNAL DETECTION</div>
+    <h1 class="hero-title">SENTINEL<span>.</span></h1>
+    <p class="hero-sub">AI-powered classification engine that scans tweets in real time, separates genuine disasters from noise, and scores severity in seconds — built on a {len(DISASTER_WORDS)}-term detection model.</p>
     <div class="status-pill"><span class="pulse-dot"></span>MONITORING</div>
+    {SKYLINE_SVG}
 </div>
 """, unsafe_allow_html=True)
 
@@ -427,22 +524,22 @@ _rate = int(_disaster / _total * 100) if _total else 0
 
 st.markdown(f"""
 <div class="kpi-strip">
-    <div class="kpi-card" style="--kpi-glow:{AMBER};">
+    <div class="kpi-card tilt" style="--kpi-glow:{AMBER};">
         <div class="kpi-label">Tweets Scanned</div>
         <div class="kpi-value" style="color:{TEXT};">{_total}</div>
         <div class="kpi-foot">this session</div>
     </div>
-    <div class="kpi-card" style="--kpi-glow:{CRITICAL};">
+    <div class="kpi-card tilt" style="--kpi-glow:{CRITICAL};">
         <div class="kpi-label">Critical Alerts</div>
         <div class="kpi-value" style="color:{CRITICAL};">{_critical}</div>
         <div class="kpi-foot">require immediate response</div>
     </div>
-    <div class="kpi-card" style="--kpi-glow:{CYAN};">
+    <div class="kpi-card tilt" style="--kpi-glow:{CYAN};">
         <div class="kpi-label">Disaster Rate</div>
         <div class="kpi-value" style="color:{CYAN};">{_rate}%</div>
         <div class="kpi-foot">{_disaster}/{_total if _total else 0} flagged</div>
     </div>
-    <div class="kpi-card" style="--kpi-glow:{SAFE};">
+    <div class="kpi-card tilt" style="--kpi-glow:{SAFE};">
         <div class="kpi-label">Model Accuracy</div>
         <div class="kpi-value" style="color:{SAFE};">94%</div>
         <div class="kpi-foot">{len(DISASTER_WORDS)}-term engine</div>
@@ -536,7 +633,7 @@ with tab1:
             }[severity]
 
             st.markdown(f"""
-            <div class="result-card {css_class}">
+            <div class="result-card tilt {css_class}">
                 <div class="result-head" style="color:{color};">{icon} {severity} — DISASTER DETECTED</div>
                 <div class="result-row"><span class="result-key">Category</span><span class="result-val">{category}</span></div>
                 <div class="result-row"><span class="result-key">Keywords</span><span class="result-val">{keyword_tags}</span></div>
@@ -547,7 +644,7 @@ with tab1:
             """, unsafe_allow_html=True)
         else:
             st.markdown(f"""
-            <div class="result-card result-safe">
+            <div class="result-card tilt result-safe">
                 <div class="result-head" style="color:{SAFE};">✅ SAFE — NO DISASTER</div>
                 <div class="result-row"><span class="result-key">Category</span><span class="result-val">Normal Conversation</span></div>
                 <div class="result-row"><span class="result-key">Confidence</span><span class="result-val">{confidence}%</span></div>
