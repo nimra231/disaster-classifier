@@ -21,6 +21,7 @@ SURFACE     = "#121826"
 SURFACE_2   = "#1A2233"
 GLASS       = "rgba(18,24,38,0.66)"
 BORDER      = "rgba(255,255,255,0.09)"
+BORDER_MPL  = "#FFFFFF17"   # matplotlib-safe (8-digit hex) equivalent of BORDER, for charts only
 TEXT        = "#F1F3F8"
 TEXT_MUTED  = "#8B93A7"
 AMBER       = "#F5A623"   # brand / warning accent
@@ -281,6 +282,42 @@ h1, h2, h3 {{ font-family: 'Space Grotesk', sans-serif !important; color: {TEXT}
 .tilt {{ transition: transform 0.25s ease, box-shadow 0.25s ease; transform-style: preserve-3d; }}
 .tilt:hover {{ transform: perspective(700px) rotateX(3deg) rotateY(-3deg) translateY(-5px); }}
 
+/* ---------- Entrance animations ---------- */
+@keyframes fadeInUp {{
+    from {{ opacity: 0; transform: translateY(16px); }}
+    to   {{ opacity: 1; transform: translateY(0); }}
+}}
+@keyframes fadeIn {{
+    from {{ opacity: 0; }} to {{ opacity: 1; }}
+}}
+.fade-in-up {{ animation: fadeInUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }}
+.kpi-strip .kpi-card:nth-child(1) {{ animation: fadeInUp 0.5s ease both; animation-delay: 0.05s; }}
+.kpi-strip .kpi-card:nth-child(2) {{ animation: fadeInUp 0.5s ease both; animation-delay: 0.12s; }}
+.kpi-strip .kpi-card:nth-child(3) {{ animation: fadeInUp 0.5s ease both; animation-delay: 0.19s; }}
+.kpi-strip .kpi-card:nth-child(4) {{ animation: fadeInUp 0.5s ease both; animation-delay: 0.26s; }}
+
+/* ---------- Radar sweep (hero corner accent) ---------- */
+.radar {{
+    position: absolute; top: 22px; right: 30px; width: 86px; height: 86px; z-index: 2;
+    border-radius: 50%; border: 1px solid {BORDER};
+    background: radial-gradient(circle at center, rgba(47,209,197,0.06) 0%, transparent 70%);
+}}
+.radar::before {{
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, {CYAN}bb, transparent 30%);
+    animation: spin 3.2s linear infinite;
+    -webkit-mask: radial-gradient(circle, transparent 55%, black 56%);
+            mask: radial-gradient(circle, transparent 55%, black 56%);
+}}
+.radar::after {{
+    content: ""; position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
+    background: {CYAN}; border-radius: 50%; transform: translate(-50%, -50%);
+    box-shadow: 0 0 10px 3px {CYAN}aa;
+}}
+@keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+.radar-ring {{ position: absolute; border-radius: 50%; border: 1px solid {CYAN}55; inset: 14px; }}
+.radar-ring::before {{ content:""; position:absolute; inset:14px; border-radius:50%; border:1px solid {CYAN}33; }}
+
 /* ---------- Hero KPI strip ---------- */
 .kpi-strip {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }}
 .kpi-card {{
@@ -329,7 +366,13 @@ h1, h2, h3 {{ font-family: 'Space Grotesk', sans-serif !important; color: {TEXT}
 .result-row:last-child {{ border-bottom: none; }}
 .result-key {{ font-family: 'JetBrains Mono', monospace; color: {TEXT_MUTED}; min-width: 130px; font-size: 0.78rem; letter-spacing: 0.5px; text-transform: uppercase; padding-top: 2px; }}
 .result-val {{ color: {TEXT}; }}
-.tag {{ display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; background: {SURFACE_2}; border: 1px solid {BORDER}; color: {TEXT}; padding: 3px 10px; border-radius: 5px; margin: 2px 4px 2px 0; }}
+.tag {{ display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; background: {SURFACE_2}; border: 1px solid {BORDER}; color: {TEXT}; padding: 3px 10px; border-radius: 5px; margin: 2px 4px 2px 0; transition: transform 0.15s ease, border-color 0.15s ease; }}
+.tag:hover {{ transform: translateY(-1px); border-color: {AMBER}77; }}
+.meter-wrap {{ display: flex; align-items: center; gap: 10px; width: 100%; }}
+.meter-track {{ flex: 1; height: 7px; border-radius: 4px; background: {SURFACE_2}; border: 1px solid {BORDER}; overflow: hidden; }}
+.meter-fill {{ height: 100%; border-radius: 4px; width: 0%; animation: growMeter 0.9s cubic-bezier(0.16,1,0.3,1) forwards; animation-delay: 0.1s; }}
+@keyframes growMeter {{ to {{ width: var(--meter-pct, 0%); }} }}
+.meter-pct {{ font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; font-weight: 700; min-width: 38px; text-align: right; }}
 .action-line {{ margin-top: 16px; padding: 12px 16px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; letter-spacing: 0.5px; font-weight: 600; }}
 .tweet-preview {{ font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; background: {SURFACE_2}; border: 1px solid {BORDER}; border-radius: 8px; padding: 14px 16px; line-height: 1.7; margin-bottom: 4px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.03); }}
 
@@ -510,6 +553,7 @@ st.markdown(f"""
     <h1 class="hero-title">SENTINEL<span>.</span></h1>
     <p class="hero-sub">AI-powered classification engine that scans tweets in real time, separates genuine disasters from noise, and scores severity in seconds — built on a {len(DISASTER_WORDS)}-term detection model.</p>
     <div class="status-pill"><span class="pulse-dot"></span>MONITORING</div>
+    <div class="radar"><div class="radar-ring"></div></div>
     {SKYLINE_SVG}
 </div>
 """, unsafe_allow_html=True)
@@ -633,21 +677,31 @@ with tab1:
             }[severity]
 
             st.markdown(f"""
-            <div class="result-card tilt {css_class}">
+            <div class="result-card tilt fade-in-up {css_class}">
                 <div class="result-head" style="color:{color};">{icon} {severity} — DISASTER DETECTED</div>
                 <div class="result-row"><span class="result-key">Category</span><span class="result-val">{category}</span></div>
                 <div class="result-row"><span class="result-key">Keywords</span><span class="result-val">{keyword_tags}</span></div>
                 <div class="result-row"><span class="result-key">Location</span><span class="result-val">{location if location else 'Unknown'}</span></div>
-                <div class="result-row"><span class="result-key">Confidence</span><span class="result-val">{confidence}%</span></div>
+                <div class="result-row"><span class="result-key">Confidence</span>
+                    <span class="result-val meter-wrap">
+                        <span class="meter-track"><span class="meter-fill" style="--meter-pct:{confidence}%; background:{color};"></span></span>
+                        <span class="meter-pct" style="color:{color};">{confidence}%</span>
+                    </span>
+                </div>
                 <div class="action-line" style="background:{color}22; color:{color}; border:1px solid {color}55;">🚨 ACTION → {action}</div>
             </div>
             """, unsafe_allow_html=True)
         else:
             st.markdown(f"""
-            <div class="result-card tilt result-safe">
+            <div class="result-card tilt fade-in-up result-safe">
                 <div class="result-head" style="color:{SAFE};">✅ SAFE — NO DISASTER</div>
                 <div class="result-row"><span class="result-key">Category</span><span class="result-val">Normal Conversation</span></div>
-                <div class="result-row"><span class="result-key">Confidence</span><span class="result-val">{confidence}%</span></div>
+                <div class="result-row"><span class="result-key">Confidence</span>
+                    <span class="result-val meter-wrap">
+                        <span class="meter-track"><span class="meter-fill" style="--meter-pct:{confidence}%; background:{SAFE};"></span></span>
+                        <span class="meter-pct" style="color:{SAFE};">{confidence}%</span>
+                    </span>
+                </div>
                 <div class="action-line" style="background:{SAFE}1a; color:{SAFE}; border:1px solid {SAFE}55;">✅ No emergency response needed</div>
             </div>
             """, unsafe_allow_html=True)
@@ -747,9 +801,20 @@ with tab3:
                 if st.session_state.stats[key] > 0:
                     labels.append(lbl); sizes.append(st.session_state.stats[key]); colors.append(c)
             if sizes:
-                ax1.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%',
-                        textprops={'color': TEXT, 'fontsize': 9}, wedgeprops={'edgecolor': SURFACE, 'linewidth': 2})
-                ax1.set_title('Severity Distribution', color=TEXT, fontsize=12, fontweight='bold')
+                wedges, _, autotexts = ax1.pie(
+                    sizes, colors=colors, autopct='%1.0f%%', pctdistance=0.82, startangle=90,
+                    textprops={'color': BG, 'fontsize': 9, 'fontweight': 'bold'},
+                    wedgeprops={'edgecolor': SURFACE, 'linewidth': 3, 'width': 0.42}
+                )
+                # center label — donut hole shows the total count
+                ax1.text(0, 0.08, str(sum(sizes)), ha='center', va='center',
+                          color=TEXT, fontsize=22, fontweight='bold', family='sans-serif')
+                ax1.text(0, -0.18, 'SCANNED', ha='center', va='center',
+                          color=TEXT_MUTED, fontsize=8, family='monospace')
+                ax1.legend(wedges, labels, loc='upper center', bbox_to_anchor=(0.5, 0.02),
+                           ncol=len(labels), frameon=False, labelcolor=TEXT_MUTED, fontsize=8)
+                ax1.set_title('Severity Distribution', color=TEXT, fontsize=12, fontweight='bold', pad=12)
+                fig1.tight_layout()
                 st.pyplot(fig1)
 
         with col2:
@@ -758,16 +823,22 @@ with tab3:
             ax2.set_facecolor(SURFACE)
             categories_x = ['Critical', 'High', 'Medium', 'Safe']
             values = [st.session_state.stats['critical'], st.session_state.stats['high'], st.session_state.stats['medium'], st.session_state.stats['safe']]
-            bars = ax2.bar(categories_x, values, color=[CRITICAL, HIGH, MEDIUM, SAFE])
-            ax2.set_title('Disaster Severity', color=TEXT, fontsize=12, fontweight='bold')
+            bar_colors = [CRITICAL, HIGH, MEDIUM, SAFE]
+            ax2.grid(axis='y', color=BORDER_MPL, linewidth=0.8, zorder=0)
+            ax2.set_axisbelow(True)
+            bars = ax2.bar(categories_x, values, color=bar_colors, width=0.58,
+                            edgecolor=SURFACE, linewidth=1.5, zorder=3)
+            ax2.set_title('Disaster Severity', color=TEXT, fontsize=12, fontweight='bold', pad=12)
             for spine in ['top', 'right']:
                 ax2.spines[spine].set_visible(False)
             for spine in ['left', 'bottom']:
-                ax2.spines[spine].set_color(BORDER)
-            ax2.tick_params(colors=TEXT_MUTED)
-            for bar, val in zip(bars, values):
+                ax2.spines[spine].set_color(BORDER_MPL)
+            ax2.tick_params(colors=TEXT_MUTED, labelsize=9)
+            for bar, val, c in zip(bars, values, bar_colors):
                 if val > 0:
-                    ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.5, str(val), ha='center', color=TEXT)
+                    ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max(values) * 0.03,
+                              str(val), ha='center', color=c, fontweight='bold', fontsize=10)
+            fig2.tight_layout()
             st.pyplot(fig2)
 
         col3, col4, col5 = st.columns(3)
