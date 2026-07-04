@@ -3,11 +3,16 @@ import pandas as pd
 import csv
 import io
 import re
+import time
 from datetime import datetime
 from collections import Counter
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 import random
 
@@ -41,6 +46,8 @@ defaults = {
     'history': [], 'all_keywords': [], 'all_locations': [], 'all_categories': [],
     'stats': {'total': 0, 'critical': 0, 'high': 0, 'medium': 0, 'safe': 0},
     'tweet_input_value': "",
+    'scan_times_ms': [],
+    'example_fill': None,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -138,6 +145,198 @@ CITIES = [
 ]
 CITY_PATTERNS = {c: re.compile(r'\b' + re.escape(c) + r'\b', re.IGNORECASE) for c in CITIES}
 
+# Approximate coordinates for map plotting (city centroids / country capitals for country-level entries)
+CITY_COORDS = {
+    'Karachi': (24.8607, 67.0011), 'Lahore': (31.5497, 74.3436), 'Islamabad': (33.6844, 73.0479),
+    'Peshawar': (34.0151, 71.5249), 'Quetta': (30.1798, 66.9750), 'Multan': (30.1575, 71.5249),
+    'Faisalabad': (31.4504, 73.1350), 'Rawalpindi': (33.5651, 73.0169),
+    'New York': (40.7128, -74.0060), 'Los Angeles': (34.0522, -118.2437), 'Chicago': (41.8781, -87.6298),
+    'Florida': (27.6648, -81.5158), 'California': (36.7783, -119.4179), 'Texas': (31.9686, -99.9018),
+    'Miami': (25.7617, -80.1918),
+    'London': (51.5074, -0.1278), 'Manchester': (53.4808, -2.2426), 'Paris': (48.8566, 2.3522),
+    'Berlin': (52.5200, 13.4050), 'Madrid': (40.4168, -3.7038), 'Rome': (41.9028, 12.4964),
+    'Moscow': (55.7558, 37.6173),
+    'Tokyo': (35.6762, 139.6503), 'Osaka': (34.6937, 135.5023), 'Beijing': (39.9042, 116.4074),
+    'Shanghai': (31.2304, 121.4737), 'Seoul': (37.5665, 126.9780), 'Mumbai': (19.0760, 72.8777),
+    'Delhi': (28.7041, 77.1025), 'Bangalore': (12.9716, 77.5946), 'Kolkata': (22.5726, 88.3639),
+    'Dubai': (25.2048, 55.2708), 'Abu Dhabi': (24.4539, 54.3773), 'Riyadh': (24.7136, 46.6753),
+    'Istanbul': (41.0082, 28.9784), 'Cairo': (30.0444, 31.2357), 'Jakarta': (-6.2088, 106.8456),
+    'Manila': (14.5995, 120.9842), 'Bangkok': (13.7563, 100.5018),
+    'Sydney': (-33.8688, 151.2093), 'Melbourne': (-37.8136, 144.9631), 'Toronto': (43.6532, -79.3832),
+    'Vancouver': (49.2827, -123.1207), 'Pakistan': (30.3753, 69.3451), 'India': (20.5937, 78.9629),
+    'Japan': (36.2048, 138.2529), 'China': (35.8617, 104.1954),
+    'Afghanistan': (33.9391, 67.7100), 'Iran': (32.4279, 53.6880), 'Nepal': (28.3949, 84.1240),
+    'Bangladesh': (23.6850, 90.3563), 'Turkey': (38.9637, 35.2433), 'Syria': (34.8021, 38.9968),
+    'Yemen': (15.5527, 48.5164), 'Philippines': (12.8797, 121.7740),
+    'Indonesia': (-0.7893, 113.9213), 'Australia': (-25.2744, 133.7751), 'Canada': (56.1304, -106.3468),
+    'Mexico': (23.6345, -102.5528), 'Brazil': (-14.2350, -51.9253), 'Haiti': (18.9712, -72.2852),
+    'Chile': (-35.6751, -71.5430), 'Nigeria': (9.0820, 8.6753),
+}
+
+# ============================================
+# ML VERIFICATION LAYER — TF-IDF + Logistic Regression
+# Trained on a small, hand-labeled dataset (built in-house, not a public dataset).
+# Purpose: catch paraphrased disaster reports that contain NO exact keyword match,
+# and flag keyword false-positives (e.g. "my exam was a disaster").
+# Honesty note: this is a small dataset (~150 rows) — treat reported metrics as an
+# internal sanity check, not a rigorous benchmark. Swap in a larger labeled dataset
+# (e.g. the public "Real or Not? NLP with Disaster Tweets" dataset) for production use.
+# ============================================
+TRAINING_DATA = [
+    # --- Disaster (label 1) — direct keyword examples ---
+    ("earthquake hits downtown, several buildings collapsed", 1),
+    ("wildfire spreading fast near the residential area, evacuation ordered", 1),
+    ("flash flood warning issued for the valley tonight", 1),
+    ("explosion reported at the factory, injuries confirmed", 1),
+    ("gunman opens fire at the shopping mall, police responding", 1),
+    ("tsunami warning issued after offshore earthquake", 1),
+    ("hurricane makes landfall, mandatory evacuation ordered", 1),
+    ("gas leak forces evacuation of the entire apartment building", 1),
+    ("train derailment leaves dozens injured near the station", 1),
+    ("landslide blocks the major highway after heavy rain", 1),
+    ("bridge collapse traps several vehicles below", 1),
+    ("volcano eruption forces thousands to flee the region", 1),
+    ("wildfire outbreak destroys hundreds of homes overnight", 1),
+    ("plane crash reported near the airport, rescue underway", 1),
+    ("chemical spill contaminates the local water supply", 1),
+    ("shooting at the university campus, students in lockdown", 1),
+    ("dam breach threatens nearby villages downstream", 1),
+    ("building collapse in the city center, rescue teams searching rubble", 1),
+    ("avalanche buries part of the mountain village", 1),
+    ("terrorist attack reported at the train station", 1),
+    # --- Disaster (label 1) — paraphrased, NO exact trigger word ---
+    ("the ground shook violently and the walls came down around us", 1),
+    ("water rushed through the streets and people were stuck on rooftops", 1),
+    ("the sky turned orange as thick clouds rolled in from the burning hillside", 1),
+    ("residents were told to leave their homes immediately as the water kept rising", 1),
+    ("the whole building came down in seconds, dust everywhere", 1),
+    ("the ferry went under near the coast, many still unaccounted for", 1),
+    ("the ground opened up and swallowed part of the street", 1),
+    ("shots rang out at the shopping center, people scattered in panic", 1),
+    ("hundreds are stuck without food or water after the crossing gave way", 1),
+    ("the sky is black with smoke and I can barely breathe outside", 1),
+    ("families are sleeping in tents after their homes were destroyed overnight", 1),
+    ("the water level rose three feet in an hour, cars are floating away", 1),
+    ("an entire neighborhood is underwater after the levee gave way", 1),
+    ("the mountain let loose and buried the village below", 1),
+    ("a wall of water swept away everything in its path along the coast", 1),
+    ("the aircraft went down shortly after takeoff, crews rushing to the scene", 1),
+    ("the whole block lost power after the transformer blew apart", 1),
+    ("people are running from the flames as the hillside burns out of control", 1),
+    ("the region has had no clean water for days after the pipeline burst", 1),
+    ("several people were pulled unconscious from the wreckage this morning", 1),
+    ("cars are stacked on top of each other after the multi-vehicle pileup", 1),
+    ("the school was locked down after reports of an armed man inside", 1),
+    ("the coastline is unrecognizable after the waves tore through overnight", 1),
+    ("smoke is pouring out of the apartment complex and sirens are everywhere", 1),
+    ("the whole town has been ordered out before the fire reaches the ridge", 1),
+    ("the tremor knocked out power across half the city", 1),
+    ("rescue crews are pulling survivors from the rubble at this hour", 1),
+    ("roads are impassable after the hillside gave way onto the highway", 1),
+    ("the storm ripped roofs off houses along the entire coastline", 1),
+    ("dozens are missing after the boat went down in rough seas", 1),
+    ("the whole valley is filling with smoke, visibility near zero", 1),
+    ("panic broke out after loud blasts were heard near the market", 1),
+    ("the riverbank gave way, sweeping homes into the current", 1),
+    ("crews worked through the night pulling people from the collapsed structure", 1),
+    ("the entire coastline was placed on high alert after the seabed shifted", 1),
+    ("thick ash is falling on the city, streets are empty", 1),
+    ("the whole apartment block was reduced to rubble within minutes", 1),
+    # --- Not disaster (label 0) — casual/metaphorical use of disaster-adjacent words ---
+    ("my exam was a total disaster lol i definitely failed", 0),
+    ("this presentation was a trainwreck but somehow i survived", 0),
+    ("my room is a disaster zone right now, need to clean", 0),
+    ("that movie was an absolute catastrophe, don't waste your time", 0),
+    ("trying to finish this project by tonight, my hair is basically on fire", 0),
+    ("this diet crashed and burned by day two, back to pizza", 0),
+    ("my code just crashed for the tenth time today, send help", 0),
+    ("work has been an absolute emergency lately, so much overtime", 0),
+    ("traffic today was an absolute nightmare, total gridlock for hours", 0),
+    ("that concert was fire, best show i've seen all year", 0),
+    ("my finances are a mess right now, total meltdown", 0),
+    ("i'm drowning in homework this week, send coffee", 0),
+    ("this new song is straight fire, on repeat all day", 0),
+    ("the game last night was explosive, what a comeback", 0),
+    ("my inbox is completely flooded with emails today", 0),
+    ("that new burger place is an absolute bomb, so good", 0),
+    ("my group project fell apart, total chaos honestly", 0),
+    ("today was a whirlwind, so much happened at work", 0),
+    ("the sale was insane, the store was a warzone of shoppers", 0),
+    ("i bombed that interview so hard, cringing thinking about it", 0),
+    ("that comedy show was killer, laughed the whole time", 0),
+    ("my weekend plans just blew up, everyone cancelled", 0),
+    ("the new update wrecked my whole workflow, so annoying", 0),
+    ("my sleep schedule is a disaster this week", 0),
+    ("that essay was a nightmare to write but it's finally done", 0),
+    # --- Not disaster (label 0) — normal everyday tweets ---
+    ("just had the best coffee of my life this morning", 0),
+    ("excited for the weekend trip with friends", 0),
+    ("watching the sunset from my balcony right now", 0),
+    ("finally finished reading that book, loved every page", 0),
+    ("grabbing lunch with my sister today, can't wait", 0),
+    ("can't wait for the new season of my favorite show", 0),
+    ("just adopted a puppy, so happy right now", 0),
+    ("beautiful weather today, perfect for a long walk", 0),
+    ("cooking dinner for the family tonight, trying a new recipe", 0),
+    ("studying for finals at the library all afternoon", 0),
+    ("went for a run this morning, feeling great", 0),
+    ("new phone just arrived, loving the camera quality", 0),
+    ("planning my vacation for next month, so excited", 0),
+    ("had a great meeting with the team today", 0),
+    ("trying out a new recipe this weekend, wish me luck", 0),
+    ("caught up with an old friend over coffee today", 0),
+    ("started a new book series, already hooked", 0),
+    ("the farmers market was lovely this morning", 0),
+    ("finished my workout, feeling strong today", 0),
+    ("spent the afternoon painting, very relaxing", 0),
+    ("got a promotion at work today, so thrilled", 0),
+    ("baked cookies with my kids this afternoon", 0),
+    ("the flight landed early, more time to explore the city", 0),
+    ("finally organized my closet, feels so much better", 0),
+    ("tried a new coffee shop downtown, really cozy vibe", 0),
+    ("my plants are finally blooming, so proud of them", 0),
+    ("caught the early train, got to work with time to spare", 0),
+    ("spent the evening playing board games with family", 0),
+    ("the museum exhibit was fascinating, highly recommend", 0),
+    ("just wrapped up a great workout class", 0),
+]
+
+
+@st.cache_resource(show_spinner=False)
+def train_ml_classifier():
+    """Trains a small TF-IDF + Logistic Regression model once per app process."""
+    texts = [t for t, _ in TRAINING_DATA]
+    labels = [l for _, l in TRAINING_DATA]
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        texts, labels, test_size=0.25, random_state=42, stratify=labels
+    )
+
+    vectorizer = TfidfVectorizer(max_features=3000, ngram_range=(1, 2), stop_words='english', min_df=1)
+    X_train_vec = vectorizer.fit_transform(X_train)
+    X_test_vec = vectorizer.transform(X_test)
+
+    model = LogisticRegression(max_iter=1000, C=2.0)
+    model.fit(X_train_vec, y_train)
+
+    preds = model.predict(X_test_vec)
+    metrics = {
+        'accuracy': accuracy_score(y_test, preds),
+        'precision': precision_score(y_test, preds, zero_division=0),
+        'recall': recall_score(y_test, preds, zero_division=0),
+        'f1': f1_score(y_test, preds, zero_division=0),
+        'train_size': len(X_train),
+        'test_size': len(X_test),
+    }
+    return vectorizer, model, metrics
+
+
+def ml_predict(text: str, vectorizer, model) -> float:
+    """Returns probability (0-100) that the ML model thinks this tweet is disaster-related."""
+    vec = vectorizer.transform([text])
+    proba = model.predict_proba(vec)[0][1]
+    return round(proba * 100, 1)
+
 
 def analyze_text(text: str):
     """Single source of truth for classification — used by both Single Tweet and Batch tabs."""
@@ -177,6 +376,9 @@ def highlight_text(text: str, found: list) -> str:
             highlighted
         )
     return highlighted
+
+# Train (or fetch cached) ML verification model once per app process
+ML_VECTORIZER, ML_MODEL, ML_METRICS = train_ml_classifier()
 
 # ============================================
 # GLOBAL STYLE
@@ -414,6 +616,27 @@ section[data-testid="stSidebar"] * {{ color: {TEXT}; }}
 
 .footer-bar {{ text-align: center; padding: 18px; margin-top: 28px; border-top: 1px solid {BORDER}; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: {TEXT_MUTED}; letter-spacing: 0.5px; }}
 .stAlert {{ background: {SURFACE} !important; border: 1px solid {BORDER} !important; color: {TEXT} !important; border-radius: 10px !important; }}
+
+/* ---------- Responsive: tablet ---------- */
+@media (max-width: 900px) {{
+    .hero-title {{ font-size: 3.4rem; }}
+    .kpi-strip {{ grid-template-columns: repeat(2, 1fr); }}
+    .radar {{ width: 60px; height: 60px; top: 16px; right: 16px; }}
+    .hist-row {{ grid-template-columns: 64px 80px 1fr; }}
+    .hist-row span:nth-child(4), .hist-row span:nth-child(5) {{ display: none; }}
+}}
+/* ---------- Responsive: mobile ---------- */
+@media (max-width: 560px) {{
+    .hero {{ padding: 32px 22px 24px 22px; }}
+    .hero-title {{ font-size: 2.6rem; }}
+    .hero-sub {{ font-size: 0.9rem; }}
+    .kpi-strip {{ grid-template-columns: 1fr 1fr; gap: 10px; }}
+    .kpi-value {{ font-size: 1.6rem; }}
+    .radar {{ display: none; }}
+    .result-card {{ padding: 18px 16px; }}
+    .result-row {{ flex-direction: column; gap: 2px; }}
+    .result-key {{ min-width: 0; }}
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -565,6 +788,7 @@ _total = st.session_state.stats['total']
 _critical = st.session_state.stats['critical']
 _disaster = _critical + st.session_state.stats['high'] + st.session_state.stats['medium']
 _rate = int(_disaster / _total * 100) if _total else 0
+_avg_scan_ms = f"{sum(st.session_state.scan_times_ms) / len(st.session_state.scan_times_ms):.1f}ms" if st.session_state.scan_times_ms else "—"
 
 st.markdown(f"""
 <div class="kpi-strip">
@@ -584,9 +808,9 @@ st.markdown(f"""
         <div class="kpi-foot">{_disaster}/{_total if _total else 0} flagged</div>
     </div>
     <div class="kpi-card tilt" style="--kpi-glow:{SAFE};">
-        <div class="kpi-label">Model Accuracy</div>
-        <div class="kpi-value" style="color:{SAFE};">94%</div>
-        <div class="kpi-foot">{len(DISASTER_WORDS)}-term engine</div>
+        <div class="kpi-label">Avg Scan Time</div>
+        <div class="kpi-value" style="color:{SAFE};">{_avg_scan_ms}</div>
+        <div class="kpi-foot">measured, this session</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -609,12 +833,42 @@ with col2:
 
 st.write("")
 
+with st.expander("⚙️  How SENTINEL classifies a tweet — pipeline breakdown"):
+    steps = [
+        ("1. Ingest", "Raw tweet text comes in from the input box, batch paste, or (in a live deployment) a streaming API."),
+        ("2. Keyword Match", f"Text is scanned against a {len(DISASTER_WORDS)}-term dictionary using word-boundary regex, so 'fire' won't false-positive on 'fireplace', and multi-word phrases like 'gas leak' are matched as whole phrases."),
+        ("3. Severity Scoring", "Each matched term carries a severity weight (Critical/High/Medium). The tweet inherits its highest-weight match, and a weighted sum drives the confidence score."),
+        ("4. Location Extraction", "A city/country gazetteer is checked against the text and, if matched, plotted on a map using known coordinates."),
+        ("5. Action Recommendation", "Severity maps to a suggested response tier — this is a decision-support signal, not an automated dispatch."),
+        ("6. ML Cross-Check", "Independently, a small TF-IDF + Logistic Regression model — trained on hand-labeled examples, including paraphrased disaster reports with no exact keyword — scores the same text. It's shown as a second opinion, especially useful for catching wording the keyword list misses, or flagging keyword false-positives like 'my exam was a disaster.'"),
+    ]
+    for title, desc in steps:
+        st.markdown(f"**{title}** — {desc}")
+    st.caption("Two independent layers, by design: the keyword engine is fast and fully explainable (every flag traces to an exact term); the ML layer generalizes to paraphrasing but is a statistical model trained on a small internal dataset, not production-scale. See 'ML Verification Layer' in the Analytics tab for real evaluation metrics.")
+
 tab1, tab2, tab3, tab4 = st.tabs(["📝  SINGLE TWEET", "📋  BATCH", "📊  ANALYTICS", "📜  HISTORY"])
 
 # ============================================
 # TAB 1: SINGLE TWEET
 # ============================================
 with tab1:
+    EXAMPLES = {
+        "🔴 Critical": "BREAKING: Massive explosion and gas leak reported near downtown Karachi, multiple casualties feared, evacuation underway",
+        "🟠 High": "7.2 magnitude earthquake hits Tokyo, buildings collapsed, rescue teams trapped residents",
+        "🟡 Medium": "Heavy storm and flooding warning issued for Miami this weekend, residents advised to stay alert",
+        "✅ Safe / joke": "my exam today was an absolute disaster lol I definitely failed 😭",
+    }
+    ex_cols = st.columns(len(EXAMPLES))
+    for (label, sample), c in zip(EXAMPLES.items(), ex_cols):
+        with c:
+            if st.button(label, key=f"ex_{label}", use_container_width=True):
+                st.session_state.example_fill = sample
+                st.rerun()
+
+    if st.session_state.example_fill is not None:
+        st.session_state.tweet_input_value = st.session_state.example_fill
+        st.session_state.example_fill = None
+
     tweet_input = st.text_area(
         "", placeholder="Example: 'Gas leak reported near downtown Karachi' or 'Shooting at the mall in Chicago'",
         height=100, label_visibility="collapsed", key="tweet_input_value"
@@ -632,7 +886,11 @@ with tab1:
 
     if analyze_btn and tweet_input:
         with st.spinner("Scanning transmission..."):
+            _t0 = time.perf_counter()
             result = analyze_text(tweet_input)
+            ml_score = ml_predict(tweet_input, ML_VECTORIZER, ML_MODEL)
+            _elapsed_ms = (time.perf_counter() - _t0) * 1000
+            st.session_state.scan_times_ms.append(_elapsed_ms)
 
         found = result['found']
         severity = result['severity']
@@ -665,6 +923,10 @@ with tab1:
         st.markdown(f'<div class="tweet-preview">{highlighted}</div>', unsafe_allow_html=True)
 
         keyword_tags = "".join([f'<span class="tag">{k}</span>' for k in found]) if found else '—'
+        breakdown_tags = "".join(
+            f'<span class="tag" style="border-color:{SEVERITY_COLOR[DISASTER_WORDS[k][0]]}55; color:{SEVERITY_COLOR[DISASTER_WORDS[k][0]]};">{k} → {DISASTER_WORDS[k][0]}</span>'
+            for k in found
+        ) if found else ''
 
         if found:
             css_class = {"CRITICAL": "result-critical", "HIGH": "result-high", "MEDIUM": "result-medium"}[severity]
@@ -691,6 +953,11 @@ with tab1:
                 <div class="action-line" style="background:{color}22; color:{color}; border:1px solid {color}55;">🚨 ACTION → {action}</div>
             </div>
             """, unsafe_allow_html=True)
+            st.markdown(f'<div style="margin:-6px 0 4px 4px; font-family:\'JetBrains Mono\',monospace; font-size:0.72rem; color:{TEXT_MUTED}; letter-spacing:0.5px;">WHY FLAGGED &nbsp;→&nbsp; {breakdown_tags}</div>', unsafe_allow_html=True)
+            if location and location in CITY_COORDS:
+                lat, lon = CITY_COORDS[location]
+                map_df = pd.DataFrame({'lat': [lat], 'lon': [lon]})
+                st.map(map_df, zoom=5, color=color)
         else:
             st.markdown(f"""
             <div class="result-card tilt fade-in-up result-safe">
@@ -706,6 +973,33 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
 
+        # ---- ML cross-check panel (independent of the keyword engine) ----
+        ml_color = CRITICAL if ml_score >= 66 else (HIGH if ml_score >= 40 else SAFE)
+        keyword_flagged = bool(found)
+        ml_flagged = ml_score >= 50
+        agree = keyword_flagged == ml_flagged
+        agree_badge = (
+            f'<span style="color:{SAFE};">✓ AGREES with keyword engine</span>' if agree
+            else f'<span style="color:{AMBER};">⚠ DISAGREES with keyword engine</span>'
+        )
+        st.markdown(f"""
+        <div class="result-card fade-in-up" style="border-left:4px solid {CYAN}; padding:18px 22px; margin-top:-4px;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:0.72rem; letter-spacing:1px; color:{CYAN}; text-transform:uppercase; margin-bottom:10px;">🤖 ML VERIFICATION LAYER · trained model, independent of keyword list</div>
+            <div class="result-row"><span class="result-key">Disaster Probability</span>
+                <span class="result-val meter-wrap">
+                    <span class="meter-track"><span class="meter-fill" style="--meter-pct:{ml_score}%; background:{ml_color};"></span></span>
+                    <span class="meter-pct" style="color:{ml_color};">{ml_score}%</span>
+                </span>
+            </div>
+            <div class="result-row" style="font-size:0.82rem;"><span class="result-key">Cross-check</span><span class="result-val">{agree_badge}</span></div>
+        </div>
+        """, unsafe_allow_html=True)
+        if not agree:
+            if ml_flagged and not keyword_flagged:
+                st.warning("The ML model thinks this may be disaster-related even though it matched **no exact keywords** — likely a paraphrased report. Worth a human look.")
+            else:
+                st.info("Keywords matched, but the ML model rates this as unlikely to be a real disaster — possibly a false positive (casual/metaphorical use of a trigger word).")
+
 # ============================================
 # TAB 2: BATCH ANALYSIS
 # ============================================
@@ -720,35 +1014,50 @@ with tab2:
             lines = [l.strip() for l in batch_tweets.split('\n') if l.strip()][:30]
             batch_results = []
             for tweet in lines:
+                _t0 = time.perf_counter()
                 r = analyze_text(tweet)
+                r['ml_score'] = ml_predict(tweet, ML_VECTORIZER, ML_MODEL)
+                st.session_state.scan_times_ms.append((time.perf_counter() - _t0) * 1000)
                 batch_results.append({'tweet': tweet, **r})
 
             disaster_count = sum(1 for r in batch_results if r['found'])
             safe_count = len(batch_results) - disaster_count
             critical_count = sum(1 for r in batch_results if r['severity'] == 'CRITICAL')
+            ml_catch_count = sum(1 for r in batch_results if not r['found'] and r['ml_score'] >= 50)
 
-            m1, m2, m3, m4 = st.columns(4)
+            m1, m2, m3, m4, m5 = st.columns(5)
             m1.metric("⚠️ Disaster", disaster_count)
             m2.metric("🔴 Critical", critical_count)
             m3.metric("✅ Safe", safe_count)
             m4.metric("📝 Total", len(lines))
+            m5.metric("🤖 ML-only catches", ml_catch_count, help="Tweets the keyword engine marked SAFE but the trained ML model flagged as likely disaster-related — probable paraphrases.")
 
             st.write("")
             for r in batch_results:
+                ml_only_catch = not r['found'] and r['ml_score'] >= 50
                 if r['found']:
                     color = SEVERITY_COLOR[r['severity']]
                     badge = f'<span class="hist-badge" style="background:{color}22; color:{color};">{r["severity"]}</span>'
                     loc = f' · 📍 {r["location"]}' if r['location'] else ''
                     keywords = ", ".join(r['found'][:4])
+                    ml_tag = f' <span style="color:{CYAN}; font-size:0.68rem;">🤖 {r["ml_score"]}%</span>'
                     st.markdown(
-                        f'<div class="hist-row" style="grid-template-columns: 110px 1fr 130px;">'
+                        f'<div class="hist-row" style="grid-template-columns: 110px 1fr 150px;">'
                         f'{badge}<span>{highlight_text(r["tweet"][:90], r["found"])}{loc}</span>'
-                        f'<span style="color:{TEXT_MUTED}; font-size:0.72rem;">{keywords}</span></div>',
+                        f'<span style="color:{TEXT_MUTED}; font-size:0.72rem;">{keywords}{ml_tag}</span></div>',
+                        unsafe_allow_html=True
+                    )
+                elif ml_only_catch:
+                    st.markdown(
+                        f'<div class="hist-row" style="grid-template-columns: 110px 1fr 150px; border-color:{CYAN}66;">'
+                        f'<span class="hist-badge" style="background:{CYAN}22; color:{CYAN};">🤖 ML CATCH</span>'
+                        f'<span>{r["tweet"][:90]}</span>'
+                        f'<span style="color:{CYAN}; font-size:0.72rem;">{r["ml_score"]}% disaster-likely, no keyword match</span></div>',
                         unsafe_allow_html=True
                     )
                 else:
                     st.markdown(
-                        f'<div class="hist-row" style="grid-template-columns: 110px 1fr 130px;">'
+                        f'<div class="hist-row" style="grid-template-columns: 110px 1fr 150px;">'
                         f'<span class="hist-badge" style="background:{SAFE}22; color:{SAFE};">SAFE</span>'
                         f'<span>{r["tweet"][:90]}</span><span></span></div>',
                         unsafe_allow_html=True
@@ -777,9 +1086,9 @@ with tab2:
             st.write("")
             out = io.StringIO()
             writer = csv.writer(out)
-            writer.writerow(['Tweet', 'Result', 'Category', 'Location', 'Confidence', 'Keywords'])
+            writer.writerow(['Tweet', 'Result', 'Category', 'Location', 'Confidence', 'Keywords', 'ML Disaster Probability %'])
             for r in batch_results:
-                writer.writerow([r['tweet'], r['severity'] if r['found'] else 'SAFE', r['category'] or '—', r['location'] or '—', r['confidence'], ", ".join(r['found'])])
+                writer.writerow([r['tweet'], r['severity'] if r['found'] else 'SAFE', r['category'] or '—', r['location'] or '—', r['confidence'], ", ".join(r['found']), r['ml_score']])
             st.download_button("📥 Download Batch Report (CSV)", out.getvalue(), "batch_report.csv", "text/csv")
         else:
             st.info("Paste one tweet per line, then click Analyze All.")
@@ -865,6 +1174,20 @@ with tab3:
     else:
         st.info("No data yet. Analyze some tweets to populate analytics.")
 
+    st.write("")
+    st.markdown("##### 🤖 ML Verification Layer — Model Evaluation")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Accuracy", f"{ML_METRICS['accuracy']*100:.0f}%")
+    m2.metric("Precision", f"{ML_METRICS['precision']*100:.0f}%")
+    m3.metric("Recall", f"{ML_METRICS['recall']*100:.0f}%")
+    m4.metric("F1 Score", f"{ML_METRICS['f1']*100:.0f}%")
+    st.caption(
+        f"TF-IDF + Logistic Regression, trained on {ML_METRICS['train_size']} examples, "
+        f"validated on a held-out set of {ML_METRICS['test_size']} examples never seen during training. "
+        f"⚠️ Small, hand-labeled internal dataset — treat as a sanity check, not a production benchmark. "
+        f"Swap in a larger public dataset (e.g. the 'Real or Not? NLP with Disaster Tweets' dataset) to strengthen this."
+    )
+
 # ============================================
 # TAB 4: HISTORY
 # ============================================
@@ -904,6 +1227,7 @@ with tab4:
             st.session_state.all_locations = []
             st.session_state.all_categories = []
             st.session_state.stats = {'total': 0, 'critical': 0, 'high': 0, 'medium': 0, 'safe': 0}
+            st.session_state.scan_times_ms = []
             st.rerun()
     else:
         st.info("No history yet. Classified tweets will appear here.")
