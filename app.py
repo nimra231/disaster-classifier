@@ -711,7 +711,7 @@ with st.sidebar:
     <div class="made-by-card">
         <div style="font-size: 11px; color: {TEXT_MUTED}; letter-spacing:1px;">👩‍💻 BUILT BY</div>
         <div class="made-by-name">NIMRA IFTIKHAR</div>
-        <div class="made-by-role">AI Project · Real-Time Disaster Detection</div>
+        <div class="made-by-role"> Real-Time Disaster Detection</div>
     </div>
     """, unsafe_allow_html=True)
 
