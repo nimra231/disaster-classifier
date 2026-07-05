@@ -1339,6 +1339,6 @@ with tab4:
 # ============================================
 st.markdown(f"""
 <div class="footer-bar">
-    BUILT BY NIMRA IFTIKHAR &nbsp;·&nbsp; AI PROJECT &nbsp;·&nbsp; REAL-TIME DISASTER DETECTION SYSTEM
+    BUILT BY NIMRA IFTIKHAR &nbsp;·&nbsp; &nbsp; REAL-TIME DISASTER DETECTION SYSTEM
 </div>
 """, unsafe_allow_html=True)
