@@ -338,6 +338,42 @@ def ml_predict(text: str, vectorizer, model) -> float:
     return round(proba * 100, 1)
 
 
+def resolve_verdict(found: list, keyword_severity, keyword_confidence: float, ml_score: float):
+    """
+    Single source of truth for the FINAL verdict — combines the keyword engine
+    with the ML cross-check instead of letting the keyword engine always win
+    while the ML result sits in a footnote underneath.
+
+    Returns: (final_severity_or_None, note, final_confidence)
+      note is one of:
+        None                       keyword engine and ML agree, verdict stands as-is
+        'override_false_positive'  keywords matched but ML strongly disagrees (<30%);
+                                    verdict is downgraded and flagged for human review
+        'soft_downgrade'           keywords matched but ML is unconvinced (30-49%);
+                                    verdict is downgraded one severity tier
+        'ml_only_catch'            no keyword match, but ML thinks it's disaster-related;
+                                    verdict is upgraded from SAFE for human review
+    """
+    keyword_flagged = bool(found)
+    ml_flagged = ml_score >= 50
+
+    if keyword_flagged and ml_flagged:
+        return keyword_severity, None, keyword_confidence
+
+    if keyword_flagged and not ml_flagged:
+        if ml_score < 30:
+            return 'MEDIUM', 'override_false_positive', ml_score
+        downgrade_map = {'CRITICAL': 'HIGH', 'HIGH': 'MEDIUM', 'MEDIUM': 'MEDIUM'}
+        downgraded = downgrade_map[keyword_severity]
+        note = 'soft_downgrade' if downgraded != keyword_severity else None
+        return downgraded, note, (ml_score if note else keyword_confidence)
+
+    if not keyword_flagged and ml_flagged:
+        return 'MEDIUM', 'ml_only_catch', ml_score
+
+    return None, None, keyword_confidence
+
+
 def analyze_text(text: str):
     """Single source of truth for classification — used by both Single Tweet and Batch tabs."""
     found, categories = [], []
@@ -711,7 +747,7 @@ with st.sidebar:
     <div class="made-by-card">
         <div style="font-size: 11px; color: {TEXT_MUTED}; letter-spacing:1px;">👩‍💻 BUILT BY</div>
         <div class="made-by-name">NIMRA IFTIKHAR</div>
-        <div class="made-by-role"> Real-Time Disaster Detection</div>
+        <div class="made-by-role">AI Project · Real-Time Disaster Detection</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -898,11 +934,16 @@ with tab1:
         category = result['category']
         confidence = result['confidence']
 
-        if found:
-            key = severity.lower()
-            st.session_state.stats[key] += 1
-            st.session_state.all_keywords.extend(found)
-            st.session_state.all_categories.append(category)
+        # ---- Final verdict: keyword engine + ML cross-check combined ----
+        final_severity, verdict_note, final_confidence = resolve_verdict(found, severity, confidence, ml_score)
+        final_flagged = final_severity is not None
+        display_category = category or ('🤖 ML-Detected (Unclassified)' if verdict_note == 'ml_only_catch' else category)
+
+        if final_flagged:
+            st.session_state.stats[final_severity.lower()] += 1
+            if found:
+                st.session_state.all_keywords.extend(found)
+            st.session_state.all_categories.append(display_category or 'Uncategorized')
         else:
             st.session_state.stats['safe'] += 1
 
@@ -913,10 +954,10 @@ with tab1:
         st.session_state.history.insert(0, {
             'time': datetime.now().strftime('%H:%M:%S'),
             'tweet': tweet_input[:80],
-            'result': severity if found else 'SAFE',
+            'result': final_severity if final_flagged else 'SAFE',
             'location': location or '—',
-            'confidence': confidence,
-            'category': category or 'Normal Conversation',
+            'confidence': final_confidence,
+            'category': display_category or 'Normal Conversation',
         })
 
         highlighted = highlight_text(tweet_input, found)
@@ -928,32 +969,50 @@ with tab1:
             for k in found
         ) if found else ''
 
-        if found:
-            css_class = {"CRITICAL": "result-critical", "HIGH": "result-high", "MEDIUM": "result-medium"}[severity]
-            color = SEVERITY_COLOR[severity]
-            icon = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡"}[severity]
-            action = {
-                "CRITICAL": "CALL 911 IMMEDIATELY",
-                "HIGH": "DISPATCH EMERGENCY SERVICES",
-                "MEDIUM": "MONITOR THE SITUATION",
-            }[severity]
+        if final_flagged:
+            css_class = {"CRITICAL": "result-critical", "HIGH": "result-high", "MEDIUM": "result-medium"}[final_severity]
+            color = SEVERITY_COLOR[final_severity]
+
+            # Verdict headline + action adapt to whether the ML layer agreed,
+            # downgraded, overrode, or independently caught this tweet.
+            if verdict_note is None:
+                icon = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡"}[final_severity]
+                headline = f"{icon} {final_severity} — DISASTER DETECTED"
+                action = {
+                    "CRITICAL": "CALL 911 IMMEDIATELY",
+                    "HIGH": "DISPATCH EMERGENCY SERVICES",
+                    "MEDIUM": "MONITOR THE SITUATION",
+                }[final_severity]
+            elif verdict_note == 'override_false_positive':
+                icon = "⚠️"
+                headline = f"{icon} {final_severity} — KEYWORD MATCH OVERRIDDEN BY ML (LIKELY FALSE POSITIVE)"
+                action = "FLAG FOR HUMAN REVIEW — ML MODEL STRONGLY DISAGREES WITH KEYWORD MATCH"
+            elif verdict_note == 'soft_downgrade':
+                icon = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡"}[final_severity]
+                headline = f"{icon} {final_severity} — DOWNGRADED (ML LESS CONFIDENT THAN KEYWORDS SUGGEST)"
+                action = "MONITOR THE SITUATION — HUMAN REVIEW SUGGESTED"
+            else:  # ml_only_catch
+                icon = "🤖"
+                headline = f"{icon} {final_severity} — ML-DETECTED (NO KEYWORD MATCH)"
+                action = "FLAG FOR HUMAN REVIEW — POSSIBLE PARAPHRASED REPORT"
 
             st.markdown(f"""
             <div class="result-card tilt fade-in-up {css_class}">
-                <div class="result-head" style="color:{color};">{icon} {severity} — DISASTER DETECTED</div>
-                <div class="result-row"><span class="result-key">Category</span><span class="result-val">{category}</span></div>
+                <div class="result-head" style="color:{color};">{headline}</div>
+                <div class="result-row"><span class="result-key">Category</span><span class="result-val">{display_category}</span></div>
                 <div class="result-row"><span class="result-key">Keywords</span><span class="result-val">{keyword_tags}</span></div>
                 <div class="result-row"><span class="result-key">Location</span><span class="result-val">{location if location else 'Unknown'}</span></div>
                 <div class="result-row"><span class="result-key">Confidence</span>
                     <span class="result-val meter-wrap">
-                        <span class="meter-track"><span class="meter-fill" style="--meter-pct:{confidence}%; background:{color};"></span></span>
-                        <span class="meter-pct" style="color:{color};">{confidence}%</span>
+                        <span class="meter-track"><span class="meter-fill" style="--meter-pct:{final_confidence}%; background:{color};"></span></span>
+                        <span class="meter-pct" style="color:{color};">{final_confidence}%</span>
                     </span>
                 </div>
                 <div class="action-line" style="background:{color}22; color:{color}; border:1px solid {color}55;">🚨 ACTION → {action}</div>
             </div>
             """, unsafe_allow_html=True)
-            st.markdown(f'<div style="margin:-6px 0 4px 4px; font-family:\'JetBrains Mono\',monospace; font-size:0.72rem; color:{TEXT_MUTED}; letter-spacing:0.5px;">WHY FLAGGED &nbsp;→&nbsp; {breakdown_tags}</div>', unsafe_allow_html=True)
+            if breakdown_tags:
+                st.markdown(f'<div style="margin:-6px 0 4px 4px; font-family:\'JetBrains Mono\',monospace; font-size:0.72rem; color:{TEXT_MUTED}; letter-spacing:0.5px;">WHY FLAGGED &nbsp;→&nbsp; {breakdown_tags}</div>', unsafe_allow_html=True)
             if location and location in CITY_COORDS:
                 lat, lon = CITY_COORDS[location]
                 map_df = pd.DataFrame({'lat': [lat], 'lon': [lon]})
@@ -965,23 +1024,29 @@ with tab1:
                 <div class="result-row"><span class="result-key">Category</span><span class="result-val">Normal Conversation</span></div>
                 <div class="result-row"><span class="result-key">Confidence</span>
                     <span class="result-val meter-wrap">
-                        <span class="meter-track"><span class="meter-fill" style="--meter-pct:{confidence}%; background:{SAFE};"></span></span>
-                        <span class="meter-pct" style="color:{SAFE};">{confidence}%</span>
+                        <span class="meter-track"><span class="meter-fill" style="--meter-pct:{final_confidence}%; background:{SAFE};"></span></span>
+                        <span class="meter-pct" style="color:{SAFE};">{final_confidence}%</span>
                     </span>
                 </div>
                 <div class="action-line" style="background:{SAFE}1a; color:{SAFE}; border:1px solid {SAFE}55;">✅ No emergency response needed</div>
             </div>
             """, unsafe_allow_html=True)
 
-        # ---- ML cross-check panel (independent of the keyword engine) ----
+        # ---- ML cross-check panel (shows the evidence behind the verdict above) ----
         ml_color = CRITICAL if ml_score >= 66 else (HIGH if ml_score >= 40 else SAFE)
         keyword_flagged = bool(found)
         ml_flagged = ml_score >= 50
         agree = keyword_flagged == ml_flagged
-        agree_badge = (
-            f'<span style="color:{SAFE};">✓ AGREES with keyword engine</span>' if agree
-            else f'<span style="color:{AMBER};">⚠ DISAGREES with keyword engine</span>'
-        )
+        if agree:
+            agree_badge = f'<span style="color:{SAFE};">✓ AGREES with keyword engine</span>'
+        elif verdict_note == 'override_false_positive':
+            agree_badge = f'<span style="color:{AMBER};">⚠ DISAGREED with keyword engine — verdict above was overridden</span>'
+        elif verdict_note == 'soft_downgrade':
+            agree_badge = f'<span style="color:{AMBER};">⚠ PARTIALLY DISAGREED — verdict above was downgraded</span>'
+        elif verdict_note == 'ml_only_catch':
+            agree_badge = f'<span style="color:{CYAN};">⚠ CAUGHT what keywords missed — verdict above was upgraded</span>'
+        else:
+            agree_badge = f'<span style="color:{AMBER};">⚠ DISAGREES with keyword engine</span>'
         st.markdown(f"""
         <div class="result-card fade-in-up" style="border-left:4px solid {CYAN}; padding:18px 22px; margin-top:-4px;">
             <div style="font-family:'JetBrains Mono',monospace; font-size:0.72rem; letter-spacing:1px; color:{CYAN}; text-transform:uppercase; margin-bottom:10px;">🤖 ML VERIFICATION LAYER · trained model, independent of keyword list</div>
@@ -994,11 +1059,12 @@ with tab1:
             <div class="result-row" style="font-size:0.82rem;"><span class="result-key">Cross-check</span><span class="result-val">{agree_badge}</span></div>
         </div>
         """, unsafe_allow_html=True)
-        if not agree:
-            if ml_flagged and not keyword_flagged:
-                st.warning("The ML model thinks this may be disaster-related even though it matched **no exact keywords** — likely a paraphrased report. Worth a human look.")
-            else:
-                st.info("Keywords matched, but the ML model rates this as unlikely to be a real disaster — possibly a false positive (casual/metaphorical use of a trigger word).")
+        if verdict_note == 'ml_only_catch':
+            st.warning("The ML model thinks this may be disaster-related even though it matched **no exact keywords** — likely a paraphrased report. Verdict above was upgraded for human review.")
+        elif verdict_note == 'override_false_positive':
+            st.info("Keywords matched, but the ML model rates this as unlikely to be a real disaster — verdict above was downgraded and flagged for human review instead of auto-dispatch.")
+        elif verdict_note == 'soft_downgrade':
+            st.info("Keywords matched, but the ML model was only partially convinced — verdict above was softened by one severity tier pending human review.")
 
 # ============================================
 # TAB 2: BATCH ANALYSIS
@@ -1017,27 +1083,37 @@ with tab2:
                 _t0 = time.perf_counter()
                 r = analyze_text(tweet)
                 r['ml_score'] = ml_predict(tweet, ML_VECTORIZER, ML_MODEL)
+                # Combine keyword + ML into one final verdict, same logic as Single Tweet tab
+                final_severity, verdict_note, final_confidence = resolve_verdict(
+                    r['found'], r['severity'], r['confidence'], r['ml_score']
+                )
+                r['final_severity'] = final_severity
+                r['verdict_note'] = verdict_note
+                r['final_confidence'] = final_confidence
                 st.session_state.scan_times_ms.append((time.perf_counter() - _t0) * 1000)
                 batch_results.append({'tweet': tweet, **r})
 
-            disaster_count = sum(1 for r in batch_results if r['found'])
+            disaster_count = sum(1 for r in batch_results if r['final_severity'] is not None)
             safe_count = len(batch_results) - disaster_count
-            critical_count = sum(1 for r in batch_results if r['severity'] == 'CRITICAL')
-            ml_catch_count = sum(1 for r in batch_results if not r['found'] and r['ml_score'] >= 50)
+            critical_count = sum(1 for r in batch_results if r['final_severity'] == 'CRITICAL')
+            ml_catch_count = sum(1 for r in batch_results if r['verdict_note'] == 'ml_only_catch')
+            override_count = sum(1 for r in batch_results if r['verdict_note'] == 'override_false_positive')
 
-            m1, m2, m3, m4, m5 = st.columns(5)
+            m1, m2, m3, m4, m5, m6 = st.columns(6)
             m1.metric("⚠️ Disaster", disaster_count)
             m2.metric("🔴 Critical", critical_count)
             m3.metric("✅ Safe", safe_count)
             m4.metric("📝 Total", len(lines))
-            m5.metric("🤖 ML-only catches", ml_catch_count, help="Tweets the keyword engine marked SAFE but the trained ML model flagged as likely disaster-related — probable paraphrases.")
+            m5.metric("🤖 ML-only catches", ml_catch_count, help="Tweets the keyword engine marked SAFE but the trained ML model flagged as likely disaster-related — probable paraphrases. Verdict upgraded for review.")
+            m6.metric("⚠️ ML overrides", override_count, help="Tweets that matched a keyword but the ML model strongly disagreed — verdict downgraded, flagged as likely false positives instead of auto-dispatch.")
 
             st.write("")
             for r in batch_results:
-                ml_only_catch = not r['found'] and r['ml_score'] >= 50
-                if r['found']:
-                    color = SEVERITY_COLOR[r['severity']]
-                    badge = f'<span class="hist-badge" style="background:{color}22; color:{color};">{r["severity"]}</span>'
+                final_severity = r['final_severity']
+                verdict_note = r['verdict_note']
+                if final_severity is not None and verdict_note is None:
+                    color = SEVERITY_COLOR[final_severity]
+                    badge = f'<span class="hist-badge" style="background:{color}22; color:{color};">{final_severity}</span>'
                     loc = f' · 📍 {r["location"]}' if r['location'] else ''
                     keywords = ", ".join(r['found'][:4])
                     ml_tag = f' <span style="color:{CYAN}; font-size:0.68rem;">🤖 {r["ml_score"]}%</span>'
@@ -1047,12 +1123,29 @@ with tab2:
                         f'<span style="color:{TEXT_MUTED}; font-size:0.72rem;">{keywords}{ml_tag}</span></div>',
                         unsafe_allow_html=True
                     )
-                elif ml_only_catch:
+                elif verdict_note == 'ml_only_catch':
                     st.markdown(
                         f'<div class="hist-row" style="grid-template-columns: 110px 1fr 150px; border-color:{CYAN}66;">'
                         f'<span class="hist-badge" style="background:{CYAN}22; color:{CYAN};">🤖 ML CATCH</span>'
                         f'<span>{r["tweet"][:90]}</span>'
                         f'<span style="color:{CYAN}; font-size:0.72rem;">{r["ml_score"]}% disaster-likely, no keyword match</span></div>',
+                        unsafe_allow_html=True
+                    )
+                elif verdict_note == 'override_false_positive':
+                    st.markdown(
+                        f'<div class="hist-row" style="grid-template-columns: 110px 1fr 150px; border-color:{AMBER}66;">'
+                        f'<span class="hist-badge" style="background:{AMBER}22; color:{AMBER};">⚠ ML OVERRIDE</span>'
+                        f'<span>{highlight_text(r["tweet"][:90], r["found"])}</span>'
+                        f'<span style="color:{AMBER}; font-size:0.72rem;">keyword hit, but ML only {r["ml_score"]}% — likely false positive</span></div>',
+                        unsafe_allow_html=True
+                    )
+                elif verdict_note == 'soft_downgrade':
+                    color = SEVERITY_COLOR[final_severity]
+                    st.markdown(
+                        f'<div class="hist-row" style="grid-template-columns: 110px 1fr 150px; border-color:{color}66;">'
+                        f'<span class="hist-badge" style="background:{color}22; color:{color};">{final_severity} ↓</span>'
+                        f'<span>{highlight_text(r["tweet"][:90], r["found"])}</span>'
+                        f'<span style="color:{TEXT_MUTED}; font-size:0.72rem;">downgraded — ML {r["ml_score"]}%</span></div>',
                         unsafe_allow_html=True
                     )
                 else:
@@ -1065,10 +1158,13 @@ with tab2:
 
             # push batch results into global stats/history too, so Analytics & History stay consistent
             for r in batch_results:
-                if r['found']:
-                    st.session_state.stats[r['severity'].lower()] += 1
-                    st.session_state.all_keywords.extend(r['found'])
-                    st.session_state.all_categories.append(r['category'])
+                final_severity = r['final_severity']
+                display_category = r['category'] or ('🤖 ML-Detected (Unclassified)' if r['verdict_note'] == 'ml_only_catch' else r['category'])
+                if final_severity is not None:
+                    st.session_state.stats[final_severity.lower()] += 1
+                    if r['found']:
+                        st.session_state.all_keywords.extend(r['found'])
+                    st.session_state.all_categories.append(display_category or 'Uncategorized')
                 else:
                     st.session_state.stats['safe'] += 1
                 if r['location']:
@@ -1077,18 +1173,24 @@ with tab2:
                 st.session_state.history.insert(0, {
                     'time': datetime.now().strftime('%H:%M:%S'),
                     'tweet': r['tweet'][:80],
-                    'result': r['severity'] if r['found'] else 'SAFE',
+                    'result': final_severity if final_severity is not None else 'SAFE',
                     'location': r['location'] or '—',
-                    'confidence': r['confidence'],
-                    'category': r['category'] or 'Normal Conversation',
+                    'confidence': r['final_confidence'],
+                    'category': display_category or 'Normal Conversation',
                 })
 
             st.write("")
             out = io.StringIO()
             writer = csv.writer(out)
-            writer.writerow(['Tweet', 'Result', 'Category', 'Location', 'Confidence', 'Keywords', 'ML Disaster Probability %'])
+            writer.writerow(['Tweet', 'Final Verdict', 'Verdict Note', 'Category', 'Location', 'Confidence', 'Keywords', 'ML Disaster Probability %'])
             for r in batch_results:
-                writer.writerow([r['tweet'], r['severity'] if r['found'] else 'SAFE', r['category'] or '—', r['location'] or '—', r['confidence'], ", ".join(r['found']), r['ml_score']])
+                writer.writerow([
+                    r['tweet'],
+                    r['final_severity'] if r['final_severity'] is not None else 'SAFE',
+                    r['verdict_note'] or 'agrees',
+                    r['category'] or '—', r['location'] or '—', r['final_confidence'],
+                    ", ".join(r['found']), r['ml_score']
+                ])
             st.download_button("📥 Download Batch Report (CSV)", out.getvalue(), "batch_report.csv", "text/csv")
         else:
             st.info("Paste one tweet per line, then click Analyze All.")
